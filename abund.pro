@@ -1,0 +1,985 @@
+pro hyperfine_output, linelist, hyperfine, atomic, lun
+  compile_opt idl2
+  w = where(linelist.atomic eq atomic, cw)
+  ; addew = atomic eq 38 ? 13.0 : 0.0
+  for i = 0, cw - 1 do begin
+    hyperfinetemp = hyperfine[where(floor(hyperfine.species * 10.) eq floor(linelist[w[i]].species * 10.))]
+    deviation = min(abs(linelist[w[i]].lambda - hyperfinetemp.lambda), wfl)
+    if deviation gt 1.0 then printf, lun, linelist[w[i]].lambda, linelist[w[i]].species, linelist[w[i]].ep, linelist[w[i]].loggf, linelist[w[i]].ew, format = '(2X,D8.3,6X,D4.1,1X,D9.2,1X,D9.3,20X,D10.1)' else begin
+      whp = where(hyperfinetemp.lambda gt 0)
+      we = where(whp eq wfl)
+      wll = wfl eq max(whp) ? n_elements(hyperfinetemp) - 1 : (whp[we + 1])[0] - 1
+      hyperfinetemp = hyperfinetemp[wfl : wll]
+      nh = wll - wfl + 1
+      hyperfinetemp.lambda = abs(hyperfinetemp.lambda)
+      hyperfinetemp = hyperfinetemp[sort(hyperfinetemp.lambda)]
+      if nh gt 1 then hyperfinetemp[1 : nh - 1].lambda *= -1.0
+      printf, lun, abs(hyperfinetemp[0].lambda), hyperfinetemp[0].species, hyperfinetemp[0].ep, hyperfinetemp[0].loggf, linelist[w[i]].ew, format = '(2X,D8.3,3X,D7.4,1X,D9.2,1X,D9.3,20X,D10.1)'
+      if nh gt 1 then begin
+        for j = 1, nh - 1 do printf, lun, hyperfinetemp[j].lambda, hyperfinetemp[j].species, hyperfinetemp[j].ep, hyperfinetemp[j].loggf, format = '(1X,D9.3,3X,D7.4,1X,D9.2,1X,D9.3)'
+      endif
+    endelse
+  endfor
+end
+
+function trim_linelist, star, atomic = atomic, teffphot = teffphot, ti = ti, fe = fe, alpha = alpha, nothyperfine = nothyperfine, upperlimit = upperlimit, dirflag = dirflag, uperr = uperr, downerr = downerr
+  compile_opt idl2
+  common ews, ews
+
+  if ~keyword_set(dirflag) then dirflag = ''
+  readcol, getenv('CALTECH') + 'hires/badlines.dat', badlambda, badspecies, format = 'X,X,D,D', /silent
+
+  linelist = ews
+  newstr = replicate({damping: 0d, keep: 0}, n_elements(linelist))
+  linelist = struct_addtags(linelist, newstr)
+  linelist = linelist[where(linelist.ew ge 0.1)]
+
+  ; badlines = [-1]
+  ; for i=0,n_elements(badlambda)-1 do begin
+  ; w = where(round(linelist.species*10.) eq round(badspecies[i]*10.) and abs(linelist.lambda-badlambda[i]) lt 0.2, c)
+  ; if c gt 0 then badlines = [badlines, w]
+  ; endfor
+  ; badlines = badlines[where(badlines ge 0, ckeep)]
+  ; wkeep = complement(badlines, n_elements(linelist))
+  ; linelist = linelist[wkeep]
+  nlines = n_elements(linelist)
+
+  if keyword_set(uperr) then linelist.ew += linelist.ewerr
+  if keyword_set(downerr) then linelist.ew -= linelist.ewerr
+
+  linelist = linelist[sort(linelist.lambda)]
+  linelist = linelist[sort(linelist.species)]
+  ; linelist = linelist[where((round(linelist.species) ne 8 or linelist.lambda lt 7000) and (round(linelist.species) ne 11 or (linelist.lambda gt 5880 and linelist.lambda lt 5900)) and (round(linelist.species) ne 63 or abs(linelist.lambda-4522.57) gt 5.0) and linelist.species ne 38.0 and linelist.species ne 40.0)]
+  ; linelist = linelist[where((round(linelist.species) ne 11 or (linelist.lambda gt 5880 and linelist.lambda lt 5900)) and (round(linelist.species) ne 63 or abs(linelist.lambda-4522.57) gt 5.0))]
+  if ~keyword_set(upperlimit) then linelist = linelist[where(linelist.upperlimit eq 0)]
+
+  rwcut = -4.5
+  keep = bytarr(n_elements(linelist)) + 1
+  uniqspecies = uniq(linelist.species, sort(linelist.species))
+  for i = 0, n_elements(uniqspecies) - 1 do begin
+    ; if linelist[uniqspecies[i]].species eq 3.0 or linelist[uniqspecies[i]].species eq 8.0 or linelist[uniqspecies[i]].species eq 11.0 or linelist[uniqspecies[i]].species eq 12.0 or linelist[uniqspecies[i]].species eq 13.0 or linelist[uniqspecies[i]].species eq 19.0 or linelist[uniqspecies[i]].species eq 23.0 or linelist[uniqspecies[i]].species eq 29.0 or linelist[uniqspecies[i]].species eq 30.0 or linelist[uniqspecies[i]].species eq 38.1 or linelist[uniqspecies[i]].species eq 56.1 or linelist[uniqspecies[i]].species eq 59.1 or linelist[uniqspecies[i]].species eq 63.1 or linelist[uniqspecies[i]].species eq 64.1 or linelist[uniqspecies[i]].species eq 66.1 or linelist[uniqspecies[i]].species eq 82.0 then continue
+    if linelist[uniqspecies[i]].species ne 22.0 and linelist[uniqspecies[i]].species ne 22.1 and linelist[uniqspecies[i]].species ne 26.0 and linelist[uniqspecies[i]].species ne 26.1 then continue
+    w = where(linelist.species eq linelist[uniqspecies[i]].species, c)
+    ww = where(alog10(linelist[w].ew * 1d-3 / linelist[w].lambda) gt rwcut, cbig)
+    if cbig gt 0 and c - cbig gt 1 then keep[w[ww]] = 0
+  endfor
+  linelist = linelist[where(keep)]
+
+  cnothyperfine = 0
+  calpha = 0
+  chyperfine = 0
+  cti = 0
+  cfe = 0
+
+  if keyword_set(upperlimit) then begin
+    wul = where(linelist.upperlimit eq 1, cul)
+    if cul eq 0 then return, 0
+    linelist = linelist[wul]
+  endif
+
+  if keyword_set(nothyperfine) then wnothyperfine = where(linelist.atomic ne 21 and linelist.atomic ne 23 and linelist.atomic ne 25 and linelist.atomic ne 27 and linelist.atomic ne 29 and linelist.atomic ne 56 and linelist.atomic ne 57 and linelist.atomic ne 60 and linelist.atomic ne 63, cnothyperfine)
+  ; DOES NOT INCLUDE OXYGEN
+  if keyword_set(alpha) then walpha = where(linelist.atomic eq 10 or linelist.atomic eq 12 or linelist.atomic eq 14 or linelist.atomic eq 20, calpha)
+  if keyword_set(atomic) then whyperfine = where(linelist.atomic eq atomic and linelist.ew gt 0.0, chyperfine)
+  if keyword_set(ti) then wti = where(linelist.atomic eq 22 and linelist.ew gt 0.0, cti)
+  if keyword_set(fe) then wfe = where(linelist.atomic eq 26 and linelist.ew gt 0.0, cfe)
+  c = cnothyperfine + calpha + cti + cfe + chyperfine
+  if c eq 0 then return, c
+
+  if chyperfine gt 0 then begin
+    readcol, getenv('CALTECH') + 'hires/M92_KOA/Ji20_hyperfine.moog', lambda, species, ep, loggf, skipline = 1, format = 'D,D,D,D', /silent
+    hyperfine = {lambda: 0d, species: 0d, ep: 0d, loggf: 0d}
+    hyperfine = replicate(hyperfine, n_elements(lambda))
+    hyperfine.lambda = lambda
+    hyperfine.species = species
+    hyperfine.ep = ep
+    hyperfine.loggf = loggf
+    ; hyperfine.damping = damping
+  endif
+
+  fout = getenv('CALTECH') + 'hires/M15_M92/' + dirflag + strtrim(star, 2) + (~keyword_set(teffphot) ? '' : '_teffphot') + '_temp.ew'
+  openw, lun, fout, /get_lun
+  printf, lun, star
+  case 1 of
+    cnothyperfine gt 0: for i = 0, cnothyperfine - 1 do printf, lun, linelist[wnothyperfine[i]].lambda, linelist[wnothyperfine[i]].species, linelist[wnothyperfine[i]].ep, linelist[wnothyperfine[i]].loggf, linelist[wnothyperfine[i]].damping, linelist[wnothyperfine[i]].ew, format = '(2X,D8.3,6X,D4.1,1X,D9.2,1X,D9.3,1X,G9.4,10X,D10.1)'
+    chyperfine gt 0: hyperfine_output, linelist, hyperfine, atomic, lun
+    else: begin
+      if calpha gt 0 then begin
+        for i = 0, calpha - 1 do printf, lun, linelist[walpha[i]].lambda, linelist[walpha[i]].species, linelist[walpha[i]].ep, linelist[walpha[i]].loggf, linelist[walpha[i]].damping, linelist[walpha[i]].ew, format = '(2X,D8.3,6X,D4.1,1X,D9.2,1X,D9.3,1X,G9.4,10X,D10.1)'
+      endif
+      if cti gt 0 then begin
+        for i = 0, cti - 1 do printf, lun, linelist[wti[i]].lambda, linelist[wti[i]].species, linelist[wti[i]].ep, linelist[wti[i]].loggf, linelist[wti[i]].damping, linelist[wti[i]].ew, format = '(2X,D8.3,6X,D4.1,1X,D9.2,1X,D9.3,1X,G9.4,10X,D10.1)'
+      endif
+      if cfe gt 0 then begin
+        for i = 0, cfe - 1 do printf, lun, linelist[wfe[i]].lambda, linelist[wfe[i]].species, linelist[wfe[i]].ep, linelist[wfe[i]].loggf, linelist[wfe[i]].damping, linelist[wfe[i]].ew, format = '(2X,D8.3,6X,D4.1,1X,D9.2,1X,D9.3,1X,G9.4,10X,D10.1)'
+      endif
+    end
+  endcase
+  close, lun
+  free_lun, lun
+
+  return, c
+end
+
+function feh_alphafe, abund, alphafe = alphafe, errfeh = errfeh, erralphafe = erralphafe
+  compile_opt idl2
+  eps_fe = 7.50
+  ; alpha = ['O', 'Ne', 'Mg', 'Si', 'S', 'Ar', 'Ca', 'Ti']
+  ; eps_alpha = [8.93, 8.09, 7.58, 7.55, 7.21, 6.56, 6.36, 4.99]
+  alpha = ['Mg', 'Si', 'Ca']
+  eps_alpha = [7.58, 7.55, 6.36]
+  nalpha = n_elements(eps_alpha)
+  alphai = intarr(nalpha)
+  w = where(abund.element eq 'Fe' and abund.upperlimit eq 0, cfe)
+  feh = mean(abund[w].abund) - eps_fe
+  errfeh = stddev(abund[w].abund) / sqrt(double(cfe))
+  alphastarted = 0
+  for i = 0, nalpha - 1 do begin
+    w = where(abund.element eq alpha[i] and abund.upperlimit eq 0, c)
+    if c gt 0 then begin
+      alphaabundi = abund[w].abund - eps_alpha[i]
+      alphaabund = alphastarted eq 0 ? alphaabundi : [alphaabund, alphaabundi]
+      alphastarted = 1
+    endif
+  endfor
+  if alphastarted then begin
+    alphafe = mean(alphaabund) - feh
+    erralphafe = stddev(alphaabund) / sqrt(double(n_elements(alphaabund)))
+  endif
+  return, feh
+end
+
+function find_abund, par, star = star, chimask = chimask, fe1 = fe1, dfe1 = fe1err, fe2 = fe2, dfe2 = fe2err, ti1 = ti1, dti1 = ti1err, ti2 = ti2, dti2 = ti2err, feepslope = feepslope, dfeepslope = feepslopeerr, ferwslope = ferwslope, dferwslope = ferwslopeerr, tiepslope = tiepslope, dtiepslope = tiepslopeerr, tirwslope = tirwslope, dtirwslope = tirwslopeerr, teffphot = teffphot, verbose = verbose, dirflag = dirflag, fixedfeh = fixedfeh, fixedalphafe = fixedalphafe, feh = feh, errfeh = errfeh, alphafe = alphafe, erralphafe = erralphafe
+  compile_opt idl2
+  common ews, ews
+  if ~keyword_set(dirflag) then dirflag = ''
+
+  teff = par[0]
+  logg = par[1]
+  vt = par[2]
+  if ~keyword_set(chimask) then chimask = [1, 1, 1, 0, 0, 0]
+  teffphot = keyword_set(teffphot) ? 1 : 0
+
+  interp_atm, teff, logg, vt, -2.41, 0.41, outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+  abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  ; abund = apply_nlte(abund, star)
+
+  feh = (feh_alphafe(abund, alphafe = alphafe) > (-4.0)) < 0.0
+  if keyword_set(fixedfeh) then feh = fixedfeh
+  if keyword_set(fixedalphafe) then alphafe = fixedalphafe
+  alphafe >= -0.8
+  alphafe <= 1.2
+  interp_atm, teff, logg, vt, feh, alphafe, outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+  abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  ; abund = apply_nlte(abund, star)
+  abund = struct_addtags(abund, replicate({ewerr: 0d, rwerr: 0d}, n_elements(abund)))
+  for i = 0, n_elements(abund) - 1 do begin
+    w = where(abs(ews.lambda - abund[i].lambda) lt (strtrim(abund[i].element, 2) eq 'Li' ? 0.10 : 0.35) and strtrim(strmid(ews.name, 0, 2), 2) eq strtrim(abund[i].element, 2) and abs(ews.ep - abund[i].ep) lt 0.1 and abs(ews.loggf - abund[i].loggf) lt 0.1, c)
+    abund[i].ewerr = ews[w].ewerr
+    abund[i].rwerr = abund[i].ewerr / abund[i].lambda
+  endfor
+  if dirflag eq '' then abund = abund[where(abund.ewerr gt 0)]
+  feh = feh_alphafe(abund, alphafe = alphafe, errfeh = errfeh, erralphafe = erralphafe)
+  if keyword_set(fixedfeh) then feh = fixedfeh
+  if keyword_set(fixedalphafe) then alphafe = fixedalphafe
+
+  w = where(abund.element eq 'Fe' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c)
+  ; w = w[where(abs(abund[w].abund-mean(abund[w].abund)) lt 2.5*stddev(abund[w].abund))]
+  ; a = ab96(alog10(abund[w].ew/abund[w].lambda), abund[w].abund, abund[w].ewerr/(alog(10.)*abund[w].ew), abund[w].ewerr/(alog(10.)*abund[w].ew), 1, sigma=aerr)
+  a = linfit(alog10(abund[w].ew / abund[w].lambda), abund[w].abund, sigma = aerr, /double)
+  ferwslope = a[1]
+  ; ferwslopeerr = aerr[1]
+
+  ; a = linfit(abund[w].ep, abund[w].abund, measure_errors=abund[w].ewerr/abund[w].ew, sigma=aerr, /double)
+  a = linfit(abund[w].ep, abund[w].abund, sigma = aerr, /double)
+  feepslope = a[1]
+  ; feepslopeerr = aerr[1]
+  ; rms = stddev(abund[w].abund-(a[0]+a[1]*abund[w].ep))
+
+  w1 = where(abund.element eq 'Fe' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c1)
+  ; w1 = w1[where(abs(abund[w1].abund-(a[0]+a[1]*abund[w1].ep)) lt 2.5*rms, c1)]
+  w2 = where(abund.element eq 'Fe' and abund.ion eq 2 and finite(abund.abund) and abund.upperlimit eq 0, c2)
+  ; w2 = w2[where(abs(abund[w2].abund-mean(abund[w2].abund)) lt 2.5*stddev(abund[w2].abund), c2)]
+  ; fe1 = weightedmean(abund[w1].abund, abund[w1].abund*abund[w1].ewerr/abund[w1].ew, meanerror=fe1err)
+  ; fe2 = weightedmean(abund[w2].abund, abund[w2].abund*abund[w2].ewerr/abund[w2].ew, meanerror=fe2err)
+  fe1 = mean(abund[w1].abund)
+  ; fe1err = stddev(abund[w1].abund) / sqrt(double(c1))
+  fe2 = mean(abund[w2].abund)
+  ; fe2err = stddev(abund[w2].abund) / sqrt(double(c2))
+  dfe = fe1 - fe2
+  ; dfeerr = sqrt(fe1err^2. + fe2err^2.)
+
+  arwjk = dblarr(c1)
+  aepjk = dblarr(c1)
+  fe1jk = dblarr(c1)
+  fe2jk = dblarr(c2)
+  for i = 0, c1 - 1 do begin
+    wjk = lindgen(c1)
+    wjk = wjk[where(wjk ne i)]
+    arwjk[i] = (linfit(alog10(abund[w1[wjk]].ew / abund[w1[wjk]].lambda), abund[w1[wjk]].abund, /double))[1]
+    aepjk[i] = (linfit(abund[w1[wjk]].ep, abund[w1[wjk]].abund, /double))[1]
+    fe1jk[i] = mean(abund[w1[wjk]].abund)
+  endfor
+  for i = 0, c2 - 1 do begin
+    wjk = lindgen(c2)
+    wjk = wjk[where(wjk ne i)]
+    fe2jk[i] = mean(abund[w2[wjk]].abund)
+  endfor
+  ferwslopeerr = sqrt(double(c1 - 1) / double(c1) * total((arwjk - ferwslope) ^ 2.0))
+  feepslopeerr = sqrt(double(c1 - 1) / double(c1) * total((aepjk - feepslope) ^ 2.0))
+  fe1err = sqrt(double(c1 - 1) / double(c1) * total((fe1jk - fe1) ^ 2.0))
+  fe2err = sqrt(double(c2 - 1) / double(c2) * total((fe2jk - fe2) ^ 2.0))
+  dfeerr = sqrt(fe1err ^ 2. + fe2err ^ 2.)
+
+  w = where(abund.element eq 'Ti' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0)
+  ; w = w[where(abs(abund[w].abund-mean(abund[w].abund)) lt 2.5*stddev(abund[w].abund))]
+  ; a = ab96(alog10(abund[w].ew/abund[w].lambda), abund[w].abund, abund[w].ewerr/(alog(10.)*abund[w].ew), abund[w].ewerr/(alog(10.)*abund[w].ew), 1, sigma=aerr)
+  a = linfit(alog10(abund[w].ew / abund[w].lambda), abund[w].abund, sigma = aerr, /double)
+  tirwslope = a[1]
+  ; tirwslopeerr = aerr[1]
+
+  ; a = linfit(abund[w].ep, abund[w].abund, measure_errors=abund[w].ewerr/abund[w].ew, sigma=aerr, /double)
+  a = linfit(abund[w].ep, abund[w].abund, sigma = aerr, /double)
+  tiepslope = a[1]
+  ; tiepslopeerr = aerr[1]
+  ; rms = stddev(abund[w].abund-(a[0]+a[1]*abund[w].ep))
+
+  w1 = where(abund.element eq 'Ti' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c1)
+  ; w1 = w1[where(abs(abund[w1].abund-(a[0]+a[1]*abund[w1].ep)) lt 2.5*rms, c1)]
+  w2 = where(abund.element eq 'Ti' and abund.ion eq 2 and finite(abund.abund) and abund.upperlimit eq 0, c2)
+  ; w2 = w2[where(abs(abund[w2].abund-mean(abund[w2].abund)) lt 2.5*stddev(abund[w2].abund), c2)]
+  ; ti1 = weightedmean(abund[w1].abund, abund[w1].abund*abund[w1].ewerr/abund[w1].ew, meanerror=ti1err)
+  ; ti2 = weightedmean(abund[w2].abund, abund[w2].abund*abund[w2].ewerr/abund[w2].ew, meanerror=ti2err)
+  ti1 = mean(abund[w1].abund)
+  ; ti1err = stddev(abund[w1].abund) / sqrt(double(c1))
+  ti2 = mean(abund[w2].abund)
+  ; ti2err = stddev(abund[w2].abund) / sqrt(double(c2))
+  dti = ti1 - ti2
+  ; dtierr = sqrt(ti1err^2. + ti2err^2.)
+
+  if c1 gt 0 and c2 gt 0 then begin
+    arwjk = dblarr(c1)
+    aepjk = dblarr(c1)
+    ti1jk = dblarr(c1)
+    ti2jk = dblarr(c2)
+    for i = 0, c1 - 1 do begin
+      wjk = lindgen(c1)
+      wjk = wjk[where(wjk ne i)]
+      arwjk[i] = (linfit(alog10(abund[w1[wjk]].ew / abund[w1[wjk]].lambda), abund[w1[wjk]].abund, /double))[1]
+      aepjk[i] = (linfit(abund[w1[wjk]].ep, abund[w1[wjk]].abund, /double))[1]
+      ti1jk[i] = mean(abund[w1[wjk]].abund)
+    endfor
+    for i = 0, c2 - 1 do begin
+      wjk = lindgen(c2)
+      wjk = wjk[where(wjk ne i)]
+      ti2jk[i] = mean(abund[w2[wjk]].abund)
+    endfor
+    tirwslopeerr = sqrt(double(c1 - 1) / double(c1) * total((arwjk - tirwslope) ^ 2.0))
+    tiepslopeerr = sqrt(double(c1 - 1) / double(c1) * total((aepjk - tiepslope) ^ 2.0))
+    ti1err = sqrt(double(c1 - 1) / double(c1) * total((ti1jk - ti1) ^ 2.0))
+    ti2err = sqrt(double(c2 - 1) / double(c2) * total((ti2jk - ti2) ^ 2.0))
+    dtierr = sqrt(ti1err ^ 2. + ti2err ^ 2.)
+  endif
+  if c1 le 2 then begin
+    tirwslope = 0.0
+    tirwslopeerr = 1.0
+    tiepslope = 0.0
+    tiepslopeerr = 1.0
+  endif
+  if c1 le 2 or c2 eq 0 then begin
+    dti = 0.0
+    dtierr = 1.0
+  endif
+
+  if keyword_set(verbose) then begin
+    print, ' dFe/dEP = ' + string(feepslope, format = '(D+5.2)') + ' +/- ' + string(feepslopeerr, format = '(D4.2)')
+    print, ' dFe/dRW = ' + string(ferwslope, format = '(D+5.2)') + ' +/- ' + string(ferwslopeerr, format = '(D4.2)')
+    print, 'FeI-FeII = ' + string(dfe, format = '(D+5.2)') + ' +/- ' + string(dfeerr, format = '(D4.2)')
+    print, ' dTi/dEP = ' + string(tiepslope, format = '(D+5.2)') + ' +/- ' + string(tiepslopeerr, format = '(D4.2)')
+    print, ' dTi/dRW = ' + string(tirwslope, format = '(D+5.2)') + ' +/- ' + string(tirwslopeerr, format = '(D4.2)')
+    print, 'TiI-TiII = ' + string(dti, format = '(D+5.2)') + ' +/- ' + string(dtierr, format = '(D4.2)')
+  endif
+
+  chi = double(chimask) * [feepslope / feepslopeerr, dfe / dfeerr, ferwslope / ferwslopeerr, tiepslope / tiepslopeerr, dti / dtierr, tirwslope / tirwslopeerr]
+  return, chi
+end
+
+function find_abund_final, par, star = star, chimask = chimask, fe1 = fe1, dfe1 = fe1err, fe2 = fe2, dfe2 = fe2err, ti1 = ti1, dti1 = ti1err, ti2 = ti2, dti2 = ti2err, feepslope = feepslope, dfeepslope = feepslopeerr, ferwslope = ferwslope, dferwslope = ferwslopeerr, tiepslope = tiepslope, dtiepslope = tiepslopeerr, tirwslope = tirwslope, dtirwslope = tirwslopeerr, teffphot = teffphot, dirflag = dirflag
+  compile_opt idl2
+  common ews, ews
+  if ~keyword_set(dirflag) then dirflag = ''
+
+  teff = par[0]
+  logg = par[1]
+  vt = par[2]
+  if ~keyword_set(chimask) then chimask = [1, 1, 1, 0, 0, 0]
+  teffphot = keyword_set(teffphot) ? 1 : 0
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = vt
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+  abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  abund = struct_addtags(abund, replicate({ewerr: 0d, rwerr: 0d}, n_elements(abund)))
+  for i = 0, n_elements(abund) - 1 do begin
+    w = where(abs(ews.lambda - abund[i].lambda) lt (strtrim(abund[i].element, 2) eq 'Li' ? 0.10 : 0.35) and strtrim(strmid(ews.name, 0, 2), 2) eq strtrim(abund[i].element, 2) and abs(ews.ep - abund[i].ep) lt 0.1 and abs(ews.loggf - abund[i].loggf) lt 0.1, c)
+    abund[i].ewerr = ews[w].ewerr
+    abund[i].rwerr = abund[i].ewerr / abund[i].lambda
+  endfor
+  if dirflag eq '' then abund = abund[where(abund.ewerr gt 0)]
+
+  w = where(abund.element eq 'Fe' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c)
+  a = linfit(alog10(abund[w].ew / abund[w].lambda), abund[w].abund, sigma = aerr, /double)
+  ferwslope = a[1]
+
+  a = linfit(abund[w].ep, abund[w].abund, sigma = aerr, /double)
+  feepslope = a[1]
+
+  w1 = where(abund.element eq 'Fe' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c1)
+  w2 = where(abund.element eq 'Fe' and abund.ion eq 2 and finite(abund.abund) and abund.upperlimit eq 0, c2)
+  fe1 = mean(abund[w1].abund)
+  fe2 = mean(abund[w2].abund)
+  dfe = fe1 - fe2
+
+  arwjk = dblarr(c1)
+  aepjk = dblarr(c1)
+  fe1jk = dblarr(c1)
+  fe2jk = dblarr(c2)
+  for i = 0, c1 - 1 do begin
+    wjk = lindgen(c1)
+    wjk = wjk[where(wjk ne i)]
+    arwjk[i] = (linfit(alog10(abund[w1[wjk]].ew / abund[w1[wjk]].lambda), abund[w1[wjk]].abund, /double))[1]
+    aepjk[i] = (linfit(abund[w1[wjk]].ep, abund[w1[wjk]].abund, /double))[1]
+    fe1jk[i] = mean(abund[w1[wjk]].abund)
+  endfor
+  for i = 0, c2 - 1 do begin
+    wjk = lindgen(c2)
+    wjk = wjk[where(wjk ne i)]
+    fe2jk[i] = mean(abund[w2[wjk]].abund)
+  endfor
+  ferwslopeerr = sqrt(double(c1 - 1) / double(c1) * total((arwjk - ferwslope) ^ 2.0))
+  feepslopeerr = sqrt(double(c1 - 1) / double(c1) * total((aepjk - feepslope) ^ 2.0))
+  fe1err = sqrt(double(c1 - 1) / double(c1) * total((fe1jk - fe1) ^ 2.0))
+  fe2err = sqrt(double(c2 - 1) / double(c2) * total((fe2jk - fe2) ^ 2.0))
+  dfeerr = sqrt(fe1err ^ 2. + fe2err ^ 2.)
+
+  w = where(abund.element eq 'Ti' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0)
+  a = linfit(alog10(abund[w].ew / abund[w].lambda), abund[w].abund, sigma = aerr, /double)
+  tirwslope = a[1]
+
+  a = linfit(abund[w].ep, abund[w].abund, sigma = aerr, /double)
+  tiepslope = a[1]
+
+  w1 = where(abund.element eq 'Ti' and abund.ion eq 1 and finite(abund.abund) and abund.upperlimit eq 0, c1)
+  w2 = where(abund.element eq 'Ti' and abund.ion eq 2 and finite(abund.abund) and abund.upperlimit eq 0, c2)
+  ti1 = mean(abund[w1].abund)
+  ti2 = mean(abund[w2].abund)
+  dti = ti1 - ti2
+
+  if c1 gt 0 and c2 gt 0 then begin
+    arwjk = dblarr(c1)
+    aepjk = dblarr(c1)
+    ti1jk = dblarr(c1)
+    ti2jk = dblarr(c2)
+    for i = 0, c1 - 1 do begin
+      wjk = lindgen(c1)
+      wjk = wjk[where(wjk ne i)]
+      arwjk[i] = (linfit(alog10(abund[w1[wjk]].ew / abund[w1[wjk]].lambda), abund[w1[wjk]].abund, /double))[1]
+      aepjk[i] = (linfit(abund[w1[wjk]].ep, abund[w1[wjk]].abund, /double))[1]
+      ti1jk[i] = mean(abund[w1[wjk]].abund)
+    endfor
+    for i = 0, c2 - 1 do begin
+      wjk = lindgen(c2)
+      wjk = wjk[where(wjk ne i)]
+      ti2jk[i] = mean(abund[w2[wjk]].abund)
+    endfor
+    tirwslopeerr = sqrt(double(c1 - 1) / double(c1) * total((arwjk - tirwslope) ^ 2.0))
+    tiepslopeerr = sqrt(double(c1 - 1) / double(c1) * total((aepjk - tiepslope) ^ 2.0))
+    ti1err = sqrt(double(c1 - 1) / double(c1) * total((ti1jk - ti1) ^ 2.0))
+    ti2err = sqrt(double(c2 - 1) / double(c2) * total((ti2jk - ti2) ^ 2.0))
+    dtierr = sqrt(ti1err ^ 2. + ti2err ^ 2.)
+  endif
+  if c1 le 2 then begin
+    tirwslope = 0.0
+    tirwslopeerr = 1.0
+    tiepslope = 0.0
+    tiepslopeerr = 1.0
+  endif
+  if c1 le 2 or c2 eq 0 then begin
+    dti = 0.0
+    dtierr = 1.0
+  endif
+
+  chi = double(chimask) * [feepslope / feepslopeerr, dfe / dfeerr, ferwslope / ferwslopeerr, tiepslope / tiepslopeerr, dti / dtierr, tirwslope / tirwslopeerr]
+  return, chi
+end
+
+function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, uperr = uperr, downerr = downerr
+  compile_opt idl2
+  common ews, ews
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  e = elements(/newmoog)
+
+  hyperfine_el = [21, 23, 25, 27, 29, 56, 57, 60, 63]
+  hyperfine_name = ['sc', 'v', 'mn', 'co', 'cu', 'ba', 'la', 'nd', 'eu']
+  nhyper = n_elements(hyperfine_el)
+  nlineshyper = intarr(nhyper)
+  nlineshyperul = intarr(nhyper)
+
+  nlines = trim_linelist(star, /nothyperfine, teffphot = teffphot, dirflag = dirflag, uperr = uperr, downerr = downerr)
+  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'abfind', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2'
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+
+  for i = 0, nhyper - 1 do begin
+    nlineshyper[i] = trim_linelist(star, atomic = hyperfine_el[i], teffphot = teffphot, dirflag = dirflag, uperr = uperr, downerr = downerr)
+    if nlineshyper[i] gt 0 then begin
+      wel = where(e.atomic eq hyperfine_el[i])
+      wiso = where(e[wel].isotope gt 0, niso)
+      atomic = hyperfine_el[i] + ((hyperfine_el[i] eq 21 or hyperfine_el[i] gt 30) ? 0.1 : 0.0)
+      isotopes = e[wel].isotope[wiso]
+      isofracs = hyperfine_el[i] ge 31 ? e[wel].rfrac[wiso] : e[wel].solarfrac[wiso]
+      if niso gt 1 and hyperfine_el[i] ne 38 then begin
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'blends', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '.out2', atomic = atomic, isotopes = isotopes, isofracs = isofracs
+      endif else begin
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'blends', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '.out2', atomic = atomic
+      endelse
+      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+    endif
+  endfor
+
+  nlinesul = trim_linelist(star, /nothyperfine, teffphot = teffphot, /upperlimit, dirflag = dirflag, uperr = uperr, downerr = downerr)
+  if nlinesul gt 0 then begin
+    make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'abfind', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_ul.out2'
+    spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+  endif
+
+  for i = 0, nhyper - 1 do begin
+    nlineshyperul[i] = trim_linelist(star, atomic = hyperfine_el[i], teffphot = teffphot, /upperlimit, dirflag = dirflag, uperr = uperr, downerr = downerr)
+    if nlineshyperul[i] gt 0 then begin
+      wel = where(e.atomic eq hyperfine_el[i])
+      wiso = where(e[wel].isotope gt 0, niso)
+      atomic = hyperfine_el[i] + ((hyperfine_el[i] eq 21 or hyperfine_el[i] gt 30) ? 0.1 : 0.0)
+      isotopes = e[wel].isotope[wiso]
+      isofracs = hyperfine_el[i] ge 31 ? e[wel].rfrac[wiso] : e[wel].solarfrac[wiso]
+      if niso gt 1 and hyperfine_el[i] ne 38 then begin
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'blends', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '_ul.out2', atomic = atomic, isotopes = isotopes, isofracs = isofracs
+      endif else begin
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'blends', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '_ul.out2', atomic = atomic
+      endelse
+      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+    endif
+  endfor
+
+  ; make_par, parfile=dirflag+star+(teffphot eq 0 ? '' : '_teffphot')+'.par', atmfile=dirflag+star+(teffphot eq 0 ? '' : '_teffphot')+'.atm', driver='abfind', linefile=dirflag+star+(teffphot eq 0 ? '' : '_teffphot')+'.ew', outfile=dirflag+star+(teffphot eq 0 ? '' : '_teffphot')+'.out2'
+
+  ; print, '        V_0 = '+string(vmag, format='(D5.2)')
+  ; print, '        I_0 = '+string(imag, format='(D5.2)')
+  ; if keyword_set(jmag) then print, '        J_0 = '+string(jmag, format='(D5.2)')
+  ; if keyword_set(kmag) then print, '        K_0 = '+string(kmag, format='(D5.2)')
+  ; print, '       Teff = '+string(abunds.teff, format='(I4)')
+  ; print, '       logg = '+string(abunds.logg, format='(D4.2)')
+  ; print, '         vt = '+string(abunds.vt, format='(D4.2)')
+  abund = read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  for i = 0, nhyper - 1 do begin
+    if nlineshyper[i] gt 0 then abund = struct_append(abund, read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '.out2', /blends))
+  endfor
+
+  if nlinesul gt 0 then abund = struct_append(abund, read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '_ul.out2', /upperlimit))
+  for i = 0, nhyper - 1 do begin
+    if nlineshyperul[i] gt 0 then abund = struct_append(abund, read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '_ul.out2', /upperlimit, /blends))
+  endfor
+  ; abund = apply_nlte(abund, star)
+
+  abund = abund[where(abund.abund lt 100 and finite(abund.abund))]
+
+  abund = struct_addtags(abund, replicate({ewerr: 0d, rwerr: 0d}, n_elements(abund)))
+  for i = 0, n_elements(abund) - 1 do begin
+    if contains(hyperfine_name, strlowcase(abund[i].element)) then begin
+      w = where(abs(ews.lambda - abund[i].lambda) lt 1.0 and strtrim(strmid(ews.name, 0, 2), 2) eq strtrim(abund[i].element, 2))
+      abund[i].lambda = ews[w].lambda
+      abund[i].ep = ews[w].ep
+      abund[i].loggf = ews[w].loggf
+      abund[i].ewerr = ews[w].ewerr
+      abund[i].rwerr = abund[i].ewerr / abund[i].lambda
+    endif else begin
+      w = where(abs(ews.lambda - abund[i].lambda) lt (strtrim(abund[i].element, 2) eq 'Li' ? 0.10 : 0.35) and strtrim(strmid(ews.name, 0, 2), 2) eq strtrim(abund[i].element, 2) and abs(ews.ep - abund[i].ep) lt 0.1 and abs(ews.loggf - abund[i].loggf) lt 0.1)
+      abund[i].ewerr = ews[w].ewerr
+      abund[i].rwerr = abund[i].ewerr / abund[i].lambda
+    endelse
+  endfor
+  return, abund
+end
+
+function error_analysis, star, abunds, teffphot = teffphot
+  compile_opt idl2
+  common ews, ews
+  teffphot = keyword_set(teffphot) ? 1 : 0
+  jlcspecies = [3.0, 8.0, 11.0, 12.0, 13.0, 14.0, 19.0, 20.0, 20.1, 21.1, 22.0, 22.1, 23.0, 23.1, 24.0, 24.1, 25.0, 25.1, 26.0, 26.1, 27.0, 28.0, 29.0, 30.0, 38.0, 38.1, 39.1, 40.0, 40.1, 56.1, 57.1, 58.1, 59.1, 60.1, 62.1, 63.1, 64.1, 66.1, 67.1, 82.0, 6.0, 7.0]
+  njlcspecies = n_elements(jlcspecies)
+  e = elements(/newmoog)
+
+  hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
+  hiresall = hiresall[where(hiresall.gmag0 lt 18.5 and strtrim(hiresall.name, 2) ne 'X-20' and strtrim(hiresall.name, 2) ne 'S2303')]
+
+  dirflag = 'ew/'
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
+
+  interp_atm, abunds.teff, abunds.logg, abunds.vt, abunds.feh, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  abund = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  newstr = {uperr: -999d, downerr: -999d, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4)}
+  na = n_elements(abund)
+  abund = struct_addtags(abund, replicate(newstr, na))
+
+  abund_uperr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /uperr)
+  abund_downerr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /downerr)
+  match, abund.lambda, abund_uperr.lambda, w1, w2
+  abund[w1].uperr = abund_uperr[w2].abund - abund[w1].abund
+  match, abund.lambda, abund_downerr.lambda, w1, w2
+  abund[w1].downerr = abund_downerr[w2].abund - abund[w1].abund
+  w = where(abund.uperr le 0 and abund.downerr lt 0 and abund.downerr gt -10, c)
+  if c gt 0 then abund[w].uperr = abund[w].downerr
+  w = where(abund.uperr gt 0 and abund.downerr ge 0, c)
+  if c gt 0 then abund[w].downerr = abund[w].uperr
+  w = where(abund.uperr le 0 or abund.downerr ge 0 or abund.downerr le -10, c)
+  if c gt 0 then begin
+    abund[w].uperr = 0.1
+    abund[w].downerr = -0.1
+  endif
+  abund.abunderr = (abund.uperr - abund.downerr) / 2.
+
+  interp_atm, abunds.teff + abunds.tefferr, abunds.logg, abunds.vt, abunds.feh, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upteff.lambda, w1, w2
+  abund[w1].upteff = abund_upteff[w2].abund - abund[w1].abund
+
+  interp_atm, abunds.teff, abunds.logg + abunds.loggerr, abunds.vt, abunds.feh, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_uplogg.lambda, w1, w2
+  abund[w1].uplogg = abund_uplogg[w2].abund - abund[w1].abund
+
+  interp_atm, abunds.teff, abunds.logg, abunds.vt + abunds.vterr, abunds.feh, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upvt.lambda, w1, w2
+  abund[w1].upvt = abund_upvt[w2].abund - abund[w1].abund
+
+  interp_atm, abunds.teff, abunds.logg, abunds.vt, abunds.feh + abunds.feherr, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
+  abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upfeh.lambda, w1, w2
+  abund[w1].upfeh = abund_upfeh[w2].abund - abund[w1].abund
+
+  ; interp_atm, abunds.teff, abunds.logg, abunds.vt, abunds.feh, abunds.alphafe+abunds.alphafeerr, outfile=dirflag2+star+(teffphot eq 0 ? '' : '_teffphot')+'.atm'
+  ; abund_upalphafe = calculate_abund(star, teffphot=teffphot, dirflag=dirflag)
+  ; match, abund.lambda, abund_upalphafe.lambda, w1, w2
+  ; abund[w1].upalphafe = abund_upalphafe[w2].abund - abund[w1].abund
+
+  ; rho = rho_correlate2()
+  ;
+  ; atomic = intarr(na)
+  ; for i=0L,na-1 do begin
+  ; w = where(abund[i].element eq e.name)
+  ; atomic[i] = e[w].atomic
+  ; endfor
+  ; species = float(atomic) + 0.1*float(abund.ion)
+  ; u = uniq(species, sort(species))
+  ; uspecies = species[u]
+  ; uspecies = uspecies[where(floor(uspecies) ne 26)]
+  ; uspecies = [26.1, 26.2, uspecies]
+  ; for j=0,n_elements(uspecies)-1 do begin
+  ; wmc = where(round(10.*(jlcspecies+0.1)) eq round(10.*(uspecies[j])), cwmc)
+  ; if cwmc eq 0 then message, 'Could not find species in JLC line list.'
+  ;
+  ; w = where(round(10.*(species)) eq round(10.*(uspecies[j])) and abund.upperlimit eq 0, n)
+  ; wul = where(round(10.*(species)) eq round(10.*(uspecies[j])) and abund.upperlimit eq 1, nul)
+  ; ;if floor(uspecies[j]) eq 39 then stop
+  ; nneg = 1
+  ; while nneg gt 0 do begin
+  ; case 1 of
+  ; n gt 0: begin
+  ; delta = dblarr(n, 4)
+  ; delta[*,0] = abund[w].upteff
+  ; delta[*,1] = abund[w].uplogg
+  ; delta[*,2] = abund[w].upvt
+  ; delta[*,3] = abund[w].upfeh
+  ; for i=0,n-1 do abund[w[i]].delta = reform(delta[i,*])
+  ; Sigma0 = delta # rho # transpose(delta)
+  ; sigmasys = 0.1
+  ; if n eq 1 then begin
+  ; Sigma = Sigma0
+  ; Sigma[0,0] += (abund[w[0]].abunderr)^2. + sigmasys^2.
+  ; avg = abund[w].abund
+  ; abund[w].weight = 1. / Sigma[0,0]
+  ; stddev = Sigma[0,0]
+  ; endif else begin
+  ; sigmasysprev = 1.0
+  ; sigmasysarr = dindgen(10000)*0.0001
+  ; resid = dblarr(10000)
+  ; iter = 0
+  ; while abs(sigmasysprev-sigmasys) ge 0.001 and nneg ne 0 do begin
+  ; Sigma = Sigma0
+  ; for i=0,n-1 do Sigma[i,i] += (abund[w[i]].abunderr)^2. + sigmasys^2.
+  ; Sigmainverse = invert(Sigma)
+  ; for i=0,n-1 do abund[w[i]].weight = total(Sigmainverse[i,*])
+  ; ;avg = total(abund[w].abund*abs(abund[w].weight)) / total(abs(abund[w].weight))
+  ; avg = total(abund[w].abund*abund[w].weight) / total(abund[w].weight)
+  ; stddev = sqrt(1. / total(abund[w].weight))
+  ; sigmasysprev = sigmasys
+  ; for i=0,9999 do resid[i] = total((abund[w].abund - avg)^2. / (abund[w].abunderr^2. + sigmasysarr[i]^2.)^2.) - total(1. / (abund[w].abunderr^2. + sigmasysarr[i]^2.))
+  ; junk = min(resid, wm)
+  ; wl = where(sigmasysarr le sigmasysarr[wm])
+  ; junk = min(abs(resid[wl]), wm)
+  ; sigmasys = sigmasysarr[wl[wm]] > 0.1
+  ; wpos = where(resid[wl] ge 0, cpos)
+  ; wneg = where(resid[wl] lt 0, cneg)
+  ; if cpos eq 0 or cneg eq 0 or iter gt 100 then sigmasysprev = sigmasys
+  ; iter++
+  ; endwhile
+  ; endelse
+  ; ;abund[w].weight = 1.0
+  ; ;avg = mean(abund[w].abund)
+  ; ;stddev = stddev(abund[w].abund) / sqrt(double(n))
+  ; abunds.abund[wmc] = avg
+  ; abunds.abunderr[wmc] = stddev
+  ; abunds.abundsyserr[wmc] = sigmasys
+  ; abunds.nlines[wmc] = n
+  ; end
+  ; nul gt 0: begin
+  ; abunds.abund[wmc] = min(abund[wul].abund, m)
+  ; abunds.abunderr[wmc] = -999.0
+  ; abunds.nlines[wmc] = nul
+  ; abunds.upperlimit[wmc] = abund[wul[m]].lambda
+  ; end
+  ; else: message, "There should be some lines for this species, but I can't find them."
+  ; endcase
+  ; wneg = where(round(10.*(species[w])) eq round(10.*(uspecies[j])) and abund[w].upperlimit eq 0 and abund[w].weight le 0.0, nneg)
+  ; if nneg gt 0 then abund[w[wneg]].weight = 0.0
+  ; w = where(round(10.*(species)) eq round(10.*(uspecies[j])) and abund.upperlimit eq 0 and abund.weight gt 0.0, n)
+  ; endwhile
+  ; print, uspecies[j], abund[w].weight
+  ; endfor
+
+  return, abund
+end
+
+pro atlas_to_moog, infile, outfile, vt = vt
+  compile_opt idl2
+  if ~keyword_set(outfile) then outfile = 'interp.atm'
+
+  openr, lun, infile, /get_lun
+  readf, lun, teff, logg, format = '(7X,D5,10X,D7)'
+  skip_lun, lun, 3, /lines
+  el1 = 0
+  el2 = 0
+  el3 = 0
+  el4 = 0
+  el5 = 0
+  el6 = 0
+  readf, lun, Z, el1, abund1, el2, abund2, format = '(18X,D7,17X,2(1X,I1,1X,D7))'
+  feh = alog10(Z)
+  els = [el1, el2]
+  abunds = [abund1, abund2]
+  for i = 0, 15 do begin
+    readf, lun, el1, abund1, el2, abund2, el3, abund3, el4, abund4, el5, abund5, el6, abund6, format = '(17X,6(1X,I2,1X,D6))'
+    els = [els, el1, el2, el3, el4, el5, el6]
+    abunds = [abunds, abund1, abund2, abund3, abund4, abund5, abund6]
+  endfor
+  readf, lun, el1, abund1, format = '(17X,1X,I2,1X,D6)'
+  els = [els, el1]
+  abunds = [abunds, abund1]
+  abunds[2 : n_elements(abunds) - 1] += 12.0 + feh
+  close, lun
+  free_lun, lun
+
+  if ~keyword_set(vt) then vt = 2.13 - 0.23 * logg
+  readcol, infile, c1, c2, c3, c4, c5, c6, c7, format = 'D,D,D,D,D,D,D', numline = 72, skipline = 23, /silent
+
+  e = elements(/newmoog)
+  solar = e.solar - 12.0
+  alphaels = [8, 10, 12, 14, 16, 18, 20, 22]
+  nalpha = n_elements(alphaels)
+  match, els, alphaels, we, wa
+  match, e.atomic, alphaels, w1, w2
+  alphafe = mean(abunds[we] - e[w1].solar) - feh
+
+  openw, lun, outfile, /get_lun
+  printf, lun, 'KURUCZ'
+  printf, lun, teff, logg, feh, alphafe, vt, format = '(D5.0,"/",D4.2,"/",D+5.2,"/",D+5.2,"/",D4.2)'
+  printf, lun, 'ntau=      72'
+  for i = 0, n_elements(c1) - 1 do printf, lun, c1[i], c2[i], c3[i], c4[i], c5[i], c6[i], vt, format = '(1X,E15.9,2X,F8.1,5(1X,E10.4))'
+
+  printf, lun, vt, format = '(E13.3)'
+
+  printf, lun, nalpha, feh, format = '("NATOMS",4X,I2,2X,D8.4)'
+  for i = 0, nalpha - 1 do begin
+    printf, lun, alphaels[wa[i]], abunds[we[i]], format = '("      ",I2,"    ",D8.4)'
+  endfor
+
+  printf, lun, 'NMOL       18'
+  printf, lun, '101.0   106.0   107.0   108.0   606.0   607.0   608.0   707.0'
+  printf, lun, '708.0   808.0 10108.0 60808.0     6.1     7.1     8.1    22.1'
+  printf, lun, ' 23.1   823.0'
+  close, lun
+  free_lun, lun
+end
+
+function error_analysis_final, star, abunds, teffphot = teffphot
+  compile_opt idl2
+  common ews, ews
+  teffphot = keyword_set(teffphot) ? 1 : 0
+  jlcspecies = [3.0, 8.0, 11.0, 12.0, 13.0, 14.0, 19.0, 20.0, 20.1, 21.1, 22.0, 22.1, 23.0, 23.1, 24.0, 24.1, 25.0, 25.1, 26.0, 26.1, 27.0, 28.0, 29.0, 30.0, 38.0, 38.1, 39.1, 40.0, 40.1, 56.1, 57.1, 58.1, 59.1, 60.1, 62.1, 63.1, 64.1, 66.1, 67.1, 82.0, 6.0, 7.0]
+  njlcspecies = n_elements(jlcspecies)
+  e = elements(/newmoog)
+
+  hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
+  hiresall = hiresall[where(hiresall.gmag0 lt 18.5 and strtrim(hiresall.name, 2) ne 'X-20' and strtrim(hiresall.name, 2) ne 'S2303')]
+
+  dirflag = 'ew2/'
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  newstr = {uperr: -999d, downerr: -999d, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4)}
+  na = n_elements(abund)
+  abund = struct_addtags(abund, replicate(newstr, na))
+
+  abund_uperr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /uperr)
+  abund_downerr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /downerr)
+  match, abund.lambda, abund_uperr.lambda, w1, w2
+  abund[w1].uperr = abund_uperr[w2].abund - abund[w1].abund
+  match, abund.lambda, abund_downerr.lambda, w1, w2
+  abund[w1].downerr = abund_downerr[w2].abund - abund[w1].abund
+  w = where(abund.uperr le 0 and abund.downerr lt 0 and abund.downerr gt -10, c)
+  if c gt 0 then abund[w].uperr = abund[w].downerr
+  w = where(abund.uperr gt 0 and abund.downerr ge 0, c)
+  if c gt 0 then abund[w].downerr = abund[w].uperr
+  w = where(abund.uperr le 0 or abund.downerr ge 0 or abund.downerr le -10, c)
+  if c gt 0 then begin
+    abund[w].uperr = 0.1
+    abund[w].downerr = -0.1
+  endif
+  abund.abunderr = (abund.uperr - abund.downerr) / 2.
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upteff.lambda, w1, w2
+  abund[w1].upteff = abund_upteff[w2].abund - abund[w1].abund
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_uplogg.lambda, w1, w2
+  abund[w1].uplogg = abund_uplogg[w2].abund - abund[w1].abund
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
+  abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upvt.lambda, w1, w2
+  abund[w1].upvt = abund_upvt[w2].abund - abund[w1].abund
+
+  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  match, abund.lambda, abund_upfeh.lambda, w1, w2
+  abund[w1].upfeh = abund_upfeh[w2].abund - abund[w1].abund
+  return, abund
+end
+
+pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final
+  compile_opt idl2
+  common ews, ews
+  dirflag = keyword_set(final) ? 'ew2/' : 'ew/'
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  dirflag3 = getenv('CALTECH') + 'hires/M15_M92/ew/'
+  ews = mrdfits(dirflag3 + star + '_Ji20_ew.fits', 1, /silent)
+  allframes = mrdfits(getenv('CALTECH') + 'hires/M15_M92/M15_M92_allframes.fits', 1, /silent)
+  w = where(strtrim(allframes.name, 2) eq star)
+
+  teff = allframes[w].teffphot
+  tefferr = allframes[w].teffphoterr
+  logg = allframes[w].loggphot
+  loggerr = allframes[w].loggphoterr
+  feh = -2.41
+  alphafe = 0.41
+  vt = 2.13 - 0.23 * logg
+
+  teffphot = keyword_set(teffphot) ? 1 : 0
+
+  seed = 785122l
+  e = elements(/newmoog)
+
+  jlcspecies = [3.0, 8.0, 11.0, 12.0, 13.0, 14.0, 19.0, 20.0, 20.1, 21.1, 22.0, 22.1, 23.0, 23.1, 24.0, 24.1, 25.0, 25.1, 26.0, 26.1, 27.0, 28.0, 29.0, 30.0, 38.0, 38.1, 39.1, 40.0, 40.1, 56.1, 57.1, 58.1, 59.1, 60.1, 62.1, 63.1, 64.1, 66.1, 67.1, 82.0, 6.0, 7.0]
+  njlcspecies = n_elements(jlcspecies)
+
+  abunds = {teff: 0d, tefferr: 0d, logg: 0d, loggerr: 0d, vt: 0d, vterr: 0d, feh: 0d, feherr: 0d, alphafe: 0d, alphafeerr: 0d, abund: dblarr(njlcspecies), abunderr: dblarr(njlcspecies), abundsyserr: dblarr(njlcspecies), nlines: intarr(njlcspecies), upperlimit: dblarr(njlcspecies)}
+
+  if keyword_set(fixedmet) then begin
+    feh_mean = -2.39
+    feh_mean_err = 0.05
+    alphafe_mean = 0.41
+    alphafe_mean_err = 0.1
+    abunds.teff = teff
+    abunds.tefferr = tefferr
+    abunds.logg = logg
+    abunds.loggerr = loggerr
+    abunds.feh = feh_mean
+    abunds.feherr = feh_mean_err
+    abunds.alphafe = alphafe_mean
+    abunds.alphafeerr = alphafe_mean_err
+    abunds.vt = 2.13 - 0.23 * abunds.logg
+    abunds.vterr = sqrt(0.05 ^ 2. + (0.03 * abunds.logg) ^ 2. + (0.23 * abunds.loggerr) ^ 2.)
+  endif else begin
+    feh_mean = 0
+    alphafe_mean = 0
+  endelse
+  if ~keyword_set(fixedmet) then abunds.alphafe = 0.41
+
+  nlines = trim_linelist(star, /fe, /alpha, teffphot = teffphot, dirflag = dirflag)
+  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', driver = 'abfind', linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2'
+
+  pars = {value: 0d, fixed: 0, name: ' ', limited: [1, 1], limits: [0d, 0d], mpprint: 1, mpformat: ' ', step: 0.0}
+  pars = replicate(pars, 3)
+  pars[0 : 1].fixed = teffphot
+  ; pars[1].fixed = 1
+  pars.name = ['Teff', 'logg', '  vt']
+  pars.step = [25, 0.25, 0.2]
+  pars.mpformat = ['(I4)', '(D4.2)', '(D4.2)']
+  pars.value = [teff, logg, vt]
+
+  pars.limits[0] = [3600, 0.0001, 0.0]
+  pars.limits[1] = [8000, 4.9, 8.0]
+
+  pars.value >= pars.limits[0]
+  pars.value <= pars.limits[1]
+
+  ; chimask = ~(pars.fixed)
+  ; chimask = [chimask, chimask]
+  chimask = teffphot ? [0, 0, 1, 0, 0, 0] : [1, 1, 1, 0, 0, 0]
+  ; u = uniq(pars.fixed)
+
+  functargs = {star: star, chimask: chimask, teffphot: teffphot, verbose: 1, dirflag: dirflag2, fixedfeh: feh_mean} ; , fixedalphafe:alphafe_mean}
+  p = mpfit('find_abund' + (keyword_set(final) ? '_final' : ''), parinfo = pars, functargs = functargs, /nocatch, ftol = 1d-12, xtol = 1d-12, gtol = 1d-12, status = status, errmsg = errmsg, perror = perror)
+  chi = find_abund(p, star = star, chimask = chimask, teffphot = teffphot, verbose = verbose, dirflag = dirflag2, fixedfeh = feh_mean, feh = fehmp, errfeh = errfehmp, alphafe = alphafemp, erralphafe = erralphafemp)
+
+  abunds.teff = p[0]
+  abunds.tefferr = keyword_set(teffphot) ? tefferr : perror[0]
+  abunds.logg = p[1]
+  abunds.loggerr = keyword_set(teffphot) ? loggerr : perror[1]
+  abunds.vt = p[2]
+  abunds.vterr = perror[2]
+  if ~keyword_set(fixedmet) then begin
+    abunds.feh = fehmp
+    abunds.feherr = errfehmp
+  endif
+  abunds.alphafe = alphafemp
+  abunds.alphafeerr = erralphafemp
+
+  if keyword_set(final) then begin
+    abund = error_analysis_final(star, abunds, teffphot = teffphot)
+  endif else begin
+    abund = error_analysis(star, abunds, teffphot = teffphot)
+  endelse
+  if dirflag eq '' then abund = abund[where(abund.ewerr gt 0 or abund.upperlimit eq 1)]
+
+  mwrfits, abund, dirflag2 + star + '_abundbyline' + (teffphot ? '_teffphot' : '') + '.fits', /create
+  mwrfits, abunds, dirflag2 + star + '_abund' + (teffphot ? '_teffphot' : '') + '.fits', /create
+end
+
+pro abund, ni = ni, final = final
+  compile_opt idl2
+  hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
+  hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and strtrim(hiresall.name, 2) ne 'M92-star-7')]
+  hiresall = hiresall[sort(hiresall.name)]
+  n = n_elements(hiresall)
+
+  if ~keyword_set(ni) then begin
+    istart = 0
+    iend = n - 1
+  endif else begin
+    istart = fix(ni)
+    iend = fix(ni)
+  endelse
+
+  for i = istart, iend do begin
+    ; if strmid(hiresall[i].name, 0, 3) ne 'M15' then continue
+    if keyword_set(final) then begin
+      hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /final
+    endif else begin
+      hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /fixedmet
+    endelse
+  endfor
+end
+
+pro abundmc, ni = ni
+  compile_opt idl2
+  common ews, ews
+
+  hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
+  hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and strtrim(hiresall.name, 2) ne 'M92-star-7')]
+  hiresall = hiresall[sort(hiresall.name)]
+  n = n_elements(hiresall)
+
+  if ~keyword_set(ni) then begin
+    istart = 0
+    iend = n - 1
+  endif else begin
+    istart = fix(ni)
+    iend = fix(ni)
+  endelse
+
+  nmc = 1000
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/ew2/'
+  dirflag3 = getenv('CALTECH') + 'hires/M15_M92/mc/'
+
+  sigma_SB = 5.6704d-5
+  G = 6.674d-8
+  Msun = 1.989d33
+  M = 0.75 * Msun
+  Merr = 0.1 * Msun
+
+  bprp_giant = [0.5323, 0.4775, -0.0344, -0.0110, -0.0020, -0.0009]
+
+  for i = istart, iend do begin
+    ; if strmid(hiresall[i].name, 0, 3) ne 'M15' then continue
+    star = strtrim(hiresall[i].name, 2)
+    abunds = mrdfits(dirflag2 + star + '_abund_teffphot.fits', 1, /silent)
+    ews_orig = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
+
+    color = hiresall[i].bpmag0 - hiresall[i].rpmag0
+    colorerr = sqrt(hiresall[i].bpmagerr ^ 2. + hiresall[i].rpmagerr ^ 2.)
+    vars = [1d, color, (color) ^ 2., abunds.feh, abunds.feh ^ 2., abunds.feh * (color)]
+    varserr = [0d, 1d, 2. * (color), 0d, 0d, abunds.feh]
+    varserrfeh = [0d, 0d, 0d, 1d, 2. * abunds.feh, color]
+    tefferr = sqrt((abunds.teff * total(bprp_giant * varserr * colorerr) / total(bprp_giant * vars)) ^ 2. + (abunds.teff * total(bprp_giant * varserrfeh * abunds.feherr) / total(bprp_giant * vars)) ^ 2.)
+    teffmc = abunds.teff + tefferr * randomn(seed, nmc) + 83. * randomn(42, nmc) ; add 83 K systematic error
+
+    teffdiff = abunds.teff - 5772d
+    bcG = poly(teffdiff, [6d-2, 6.731d-5, -6.647d-8, 2.859d-11, -7.197d-15])
+    logL = (hiresall[i].gmag0 - (hiresall[i].dm - 2.682 * hiresall[i].ebv) + bcG - 4.68) / (-2.5d) + alog10(3.828d33) ; absolute G_sun = 4.68 (Andrae et al. 2018)
+
+    teffdiffmc = teffmc - 5772d
+    bcGmc = poly(teffdiffmc, [6d-2, 6.731d-5, -6.647d-8, 2.859d-11, -7.197d-15])
+    logLmc = (hiresall[i].gmag0 - (hiresall[i].dm - 2.682 * hiresall[i].ebv) + bcGmc - 4.68) / (-2.5d) + alog10(3.828d33) ; absolute G_sun = 4.68 (Andrae et al. 2018)
+
+    logg = alog10(4 * !dpi * sigma_SB * G) + alog10(M) + 4. * alog10(abunds.teff) - logL
+    loggmc = alog10(4 * !dpi * sigma_SB * G) + alog10(M) + 4. * alog10(teffmc) - logLmc
+    loggmc += (Merr / (M * alog(10))) * randomn(seed, nmc) + (hiresall[i].gmagerr * randomn(seed, nmc) / 2.5)
+
+    fehmc = abunds.feh + abunds.feherr * randomn(seed, nmc)
+
+    alphafemc = abunds.alphafe + abunds.alphafeerr * randomn(seed, nmc)
+
+    vt = 2.13 - 0.23 * logg
+    vtmc = 2.13 - 0.23 * loggmc + (0.03 * loggmc) * randomn(seed, nmc)
+
+    ews = ews_orig
+    interp_atm, abunds.teff, logg, vt, abunds.feh, abunds.alphafe, outfile = dirflag3 + star + '_teffphot.atm'
+    abunds_mc = calculate_abund(star, /teffphot, dirflag = 'mc/')
+    for j = 0, nmc - 1 do begin
+      ews = ews_orig
+      w = where(ews.ew gt 0, c)
+      ews[w].ew = abs(ews[w].ew + ews[w].ewerr * randomn(seed, c))
+      interp_atm, teffmc[j], loggmc[j], vtmc[j], fehmc[j], alphafemc[j], outfile = dirflag3 + star + '_teffphot.atm'
+      abund = calculate_abund(star, /teffphot, dirflag = 'mc/')
+      abunds_mc = [abunds_mc, abund]
+    endfor
+    mwrfits, abunds_mc, dirflag3 + star + '_abundmc_teffphot.fits', /create
+  endfor
+end
