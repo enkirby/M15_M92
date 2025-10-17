@@ -42,14 +42,14 @@ A Python notebook to compute the differential abundances, then produce plots and
 
 ## Data:
 
-# spectra:
+### spectra:
 
 This directory contains the merged, continuum-normalized spectra.
 
-# ew:
+### ew:
 
 This directory contains FITS files based on the "first iteration" of abundances, with an assumed ATLAS9 model composition.  The *\*_abund_teffphot.fits* files contain model atmosphere parameters.  The abundances in these files are not used.  The *\*_abundbyline_teffphot.fits* files contain the equivalent widths and abundances measured for each absorption line.
 
-# ew2:
+### ew2:
 
 This directory has the same type of FITS files as the *ew* directory, but the abundances are based on the custom ATLAS9 model atmospheres with compositions tailored to each star.
