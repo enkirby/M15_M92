@@ -1,0 +1,24 @@
+synth
+terminal       'x11'
+standard_out   'synth/M92-star-1_N.out1'
+summary_out    'synth/M92-star-1_N.out2'
+smoothed_out   'synth/M92-star-1_N.out3'
+model_in       'synth/M92-star-1_N.atm'
+lines_in       'synth/N.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      4         1
+ 106.00112      1.13
+ 106.00113      8.69
+ 607.01214      1.13
+ 607.01314      8.69
+flux/int      0
+plot          0
+synlimits
+  3865.000 3885.000  0.01  1.00
+obspectrum    0

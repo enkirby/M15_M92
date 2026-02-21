@@ -1,0 +1,21 @@
+#!/bin/bash
+sockets=0
+limit=`grep processor /proc/cpuinfo | wc -l`
+#limit=24
+for ((j=0; j<=20; j++))
+do
+    screenstring=`screen -ls | grep Socket`
+    sockets=${screenstring:0:2}
+    if [ "${sockets}" == "No" ] 
+    then
+	sockets=0
+    fi
+    while [ "${sockets}" -ge $limit ]
+    do
+	screenstring=`screen -ls | grep Socket`
+	sockets=${screenstring:0:2}
+	sleep 1
+    done
+    echo $j
+    screen -S "synth${j}" -t "synth${j}" -d -m nice -n 10 ./runsynth $j
+done

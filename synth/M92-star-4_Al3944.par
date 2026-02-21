@@ -1,0 +1,24 @@
+synth
+terminal       'x11'
+standard_out   'synth/M92-star-4_Al3944.out1'
+summary_out    'synth/M92-star-4_Al3944.out2'
+smoothed_out   'synth/M92-star-4_Al3944.out3'
+model_in       'synth/M92-star-4_Al3944.atm'
+lines_in       'synth/Al3944.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      4         1
+ 106.00112      1.12
+ 106.00113      9.16
+ 607.01214      1.12
+ 607.01314      9.16
+flux/int      0
+plot          0
+synlimits
+  3939.011 3948.994  0.01  1.00
+obspectrum    0
