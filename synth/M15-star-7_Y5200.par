@@ -1,0 +1,25 @@
+synth
+terminal       'x11'
+standard_out   'synth/M15-star-7_Y5200.out1'
+summary_out    'synth/M15-star-7_Y5200.out2'
+smoothed_out   'synth/M15-star-7_Y5200.out3'
+model_in       'synth/M15-star-7_Y5200.atm'
+lines_in       'synth/Y5200.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      5         1
+  39.1089       1.00
+ 106.00112      1.10
+ 106.00113     10.94
+ 607.01214      1.10
+ 607.01314     10.94
+flux/int      0
+plot          0
+synlimits
+  5195.418 5205.413  0.01  1.00
+obspectrum    0

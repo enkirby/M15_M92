@@ -1,0 +1,11 @@
+M92-star-4                                                                      
+5218./2.06/-2.42/+0.30/1.58                           vt= 1.58 M/H=-2.42        
+
+Abundance Results for Species Nd II        (input abundance =  -0.997)
+wavelength         ID      EP   logGF     EWin   logRWin     abund   delavg
+  4109.450   60.10000   0.320   0.350    27.20    -5.179    -0.347    0.166
+  4825.480   60.10000   0.180  -0.420     5.10    -5.976    -0.679   -0.166
+average abundance = -0.513     std. deviation =  0.234     #lines =   2
+ No statistics done for E.P. trends
+ No statistics done for R.W. trends
+ No statistics done for wavelength trends

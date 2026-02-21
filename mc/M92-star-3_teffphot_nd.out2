@@ -1,0 +1,12 @@
+M92-star-3                                                                      
+5214./2.10/-2.37/+0.25/1.72                           vt= 1.72 M/H=-2.37        
+
+Abundance Results for Species Nd II        (input abundance =  -0.951)
+wavelength         ID      EP   logGF     EWin   logRWin     abund   delavg
+  4109.450   60.10000   0.320   0.350    13.80    -5.474    -0.734   -0.038
+  4706.540   60.10000   0.000  -0.710     3.50    -6.129    -0.742   -0.046
+  5249.580   60.10000   0.970   0.200     3.50    -6.176    -0.611    0.084
+average abundance = -0.696     std. deviation =  0.073     #lines =   3
+ No statistics done for E.P. trends
+R.W. correlation:  slope =  -0.094  intercept =  -1.254  corr. coeff. =  -0.505
+wav. correl.:  slope =   1.055D-04  intercept =  -1.190  corr. coeff. =   0.822

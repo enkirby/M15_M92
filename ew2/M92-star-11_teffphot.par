@@ -1,0 +1,16 @@
+abfind
+terminal       'x11'
+standard_out   'ew2/M92-star-11_teffphot.out1'
+summary_out    'ew2/M92-star-11_teffphot_ul.out2'
+smoothed_out   'ew2/M92-star-11_teffphot.out3'
+model_in       'ew2/M92-star-11_teffphot.atm'
+lines_in       'ew2/M92-star-11_teffphot_temp.ew'
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+flux/int      0
+plot          0
+obspectrum    0

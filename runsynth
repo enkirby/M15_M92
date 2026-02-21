@@ -1,0 +1,4 @@
+#!/bin/bash
+eidl2<<EOF
+synth, ni='${BASH_ARGV[0]}'
+EOF

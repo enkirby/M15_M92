@@ -1,0 +1,26 @@
+synth
+terminal       'x11'
+standard_out   'synth/M15-star-12_Eu4205.out1'
+summary_out    'synth/M15-star-12_Eu4205.out2'
+smoothed_out   'synth/M15-star-12_Eu4205.out3'
+model_in       'synth/M15-star-12_Eu4205.atm'
+lines_in       'synth/Eu4205.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      6         1
+  63.1151       2.14
+  63.1153       1.87
+ 106.00112      1.09
+ 106.00113     12.19
+ 607.01214      1.09
+ 607.01314     12.19
+flux/int      0
+plot          0
+synlimits
+  4200.019 4209.992  0.01  1.00
+obspectrum    0

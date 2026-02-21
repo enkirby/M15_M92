@@ -510,7 +510,7 @@ end
 ; chi - Array of normalized equilibrium diagnostics
 ;
 ; METHOD:
-; Uses ATLAS model atmospheres from /raid/ATLAS_LMHA_{star}/.
+; Uses ATLAS model atmospheres from /raid/atlas/BasicATLAS/ATLAS_LMHA_{star}/.
 ; Otherwise identical to find_abund function.
 ;
 ; =================================================================
@@ -536,7 +536,7 @@ function find_abund_final, par, star = star, chimask = chimask, $
   ; -----------------------------------------------------------------
   ; CONVERT ATLAS ATMOSPHERE AND RUN MOOG
   ; -----------------------------------------------------------------
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', $
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', $
     dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = vt
   spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
   abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
@@ -955,122 +955,6 @@ function error_analysis, star, abunds, teffphot = teffphot
   return, abund
 end
 
-; =================================================================
-; PROCEDURE: atlas_to_moog
-; =================================================================
-; PURPOSE:
-; Convert ATLAS9 model atmosphere format to MOOG format.
-; ATLAS files contain stellar atmosphere structure and abundances;
-; MOOG requires a different format for input.
-;
-; INPUTS:
-; infile  - Path to ATLAS9 output file
-; outfile - Path for output MOOG atmosphere file (default: 'interp.atm')
-; vt      - Microturbulence (km/s). If not set, uses relation:
-; v_t = 2.13 - 0.23 * log(g)
-;
-; OUTPUT FILE FORMAT:
-; MOOG 'KURUCZ' format atmosphere with:
-; - Header: Teff, log(g), [Fe/H], [alpha/Fe], v_t
-; - 72 atmosphere layers (T, P, density, etc.)
-; - Alpha element abundances
-; - Molecular species list
-;
-; =================================================================
-pro atlas_to_moog, infile, outfile, vt = vt
-  compile_opt idl2
-  if ~keyword_set(outfile) then outfile = 'interp.atm'
-
-  ; -----------------------------------------------------------------
-  ; READ ATLAS9 FILE HEADER
-  ; -----------------------------------------------------------------
-  openr, lun, infile, /get_lun
-  readf, lun, teff, logg, format = '(7X,D5,10X,D7)'
-  skip_lun, lun, 3, /lines
-
-  ; Parse element abundances from ATLAS file
-  el1 = 0
-  el2 = 0
-  el3 = 0
-  el4 = 0
-  el5 = 0
-  el6 = 0
-  readf, lun, Z, el1, abund1, el2, abund2, format = '(18X,D7,17X,2(1X,I1,1X,D7))'
-  feh = alog10(Z) ; Metallicity from Z value
-  els = [el1, el2]
-  abunds = [abund1, abund2]
-
-  ; Read remaining element abundances (16 more lines with 6 elements each)
-  for i = 0, 15 do begin
-    readf, lun, el1, abund1, el2, abund2, el3, abund3, el4, abund4, el5, abund5, el6, abund6, $
-      format = '(17X,6(1X,I2,1X,D6))'
-    els = [els, el1, el2, el3, el4, el5, el6]
-    abunds = [abunds, abund1, abund2, abund3, abund4, abund5, abund6]
-  endfor
-
-  ; Read final element
-  readf, lun, el1, abund1, format = '(17X,1X,I2,1X,D6)'
-  els = [els, el1]
-  abunds = [abunds, abund1]
-
-  ; Convert abundances to absolute scale: log eps = log(N/N_H) + 12.0
-  abunds[2 : n_elements(abunds) - 1] += 12.0 + feh
-  close, lun
-  free_lun, lun
-
-  ; Set microturbulence if not provided
-  if ~keyword_set(vt) then vt = 2.13 - 0.23 * logg
-
-  ; -----------------------------------------------------------------
-  ; READ ATMOSPHERE STRUCTURE (72 layers)
-  ; -----------------------------------------------------------------
-  readcol, infile, c1, c2, c3, c4, c5, c6, c7, $
-    format = 'D,D,D,D,D,D,D', numline = 72, skipline = 23, /silent
-
-  ; -----------------------------------------------------------------
-  ; CALCULATE [ALPHA/FE]
-  ; -----------------------------------------------------------------
-  e = elements(/newmoog)
-  solar = e.solar - 12.0
-  alphaels = [8, 10, 12, 14, 16, 18, 20, 22] ; O, Ne, Mg, Si, S, Ar, Ca, Ti
-  nalpha = n_elements(alphaels)
-
-  match, els, alphaels, we, wa
-  match, e.atomic, alphaels, w1, w2
-  alphafe = mean(abunds[we] - e[w1].solar) - feh ; Mean alpha enhancement
-
-  ; -----------------------------------------------------------------
-  ; WRITE MOOG FORMAT FILE
-  ; -----------------------------------------------------------------
-  openw, lun, outfile, /get_lun
-  printf, lun, 'KURUCZ'
-  printf, lun, teff, logg, feh, alphafe, vt, $
-    format = '(D5.0,"/",D4.2,"/",D+5.2,"/",D+5.2,"/",D4.2)'
-  printf, lun, 'ntau=      72'
-
-  ; Write atmosphere structure
-  for i = 0, n_elements(c1) - 1 do begin
-    printf, lun, c1[i], c2[i], c3[i], c4[i], c5[i], c6[i], vt, $
-      format = '(1X,E15.9,2X,F8.1,5(1X,E10.4))'
-  endfor
-
-  printf, lun, vt, format = '(E13.3)'
-
-  ; Write alpha element abundances
-  printf, lun, nalpha, feh, format = '("NATOMS",4X,I2,2X,D8.4)'
-  for i = 0, nalpha - 1 do begin
-    printf, lun, alphaels[wa[i]], abunds[we[i]], format = '("      ",I2,"    ",D8.4)'
-  endfor
-
-  ; Write molecular species list
-  printf, lun, 'NMOL       18'
-  printf, lun, '101.0   106.0   107.0   108.0   606.0   607.0   608.0   707.0'
-  printf, lun, '708.0   808.0 10108.0 60808.0     6.1     7.1     8.1    22.1'
-  printf, lun, ' 23.1   823.0'
-  close, lun
-  free_lun, lun
-end
-
 function error_analysis_final, star, abunds, teffphot = teffphot
   compile_opt idl2
   common ews, ews
@@ -1086,7 +970,7 @@ function error_analysis_final, star, abunds, teffphot = teffphot
   dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
   ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
 
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   newstr = {uperr: -999d, downerr: -999d, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4)}
   na = n_elements(abund)
@@ -1109,22 +993,22 @@ function error_analysis_final, star, abunds, teffphot = teffphot
   endif
   abund.abunderr = (abund.uperr - abund.downerr) / 2.
 
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   match, abund.lambda, abund_upteff.lambda, w1, w2
   abund[w1].upteff = abund_upteff[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   match, abund.lambda, abund_uplogg.lambda, w1, w2
   abund[w1].uplogg = abund_uplogg[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
   abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   match, abund.lambda, abund_upvt.lambda, w1, w2
   abund[w1].upvt = abund_upvt[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/ATLAS_LMHA_' + star + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   match, abund.lambda, abund_upfeh.lambda, w1, w2
   abund[w1].upfeh = abund_upfeh[w2].abund - abund[w1].abund

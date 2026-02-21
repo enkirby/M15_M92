@@ -1,0 +1,11 @@
+ALL abundances NOT listed below differ from solar by  -2.36 dex
+M15-star-8                                                                      
+5031./2.09/-2.36/-0.02/1.89                           vt= 1.89 M/H=-2.36        
+
+Abundance Results for Species O  I         (input abundance =   5.340)
+wavelength         ID      EP   logGF     EWin   logRWin     abund   delavg
+  6300.304    8.00000   0.000  -9.720     0.80    -6.896     6.311    0.000
+average abundance =  6.311     std. deviation =  0.000     #lines =   1
+ No statistics done for E.P. trends
+ No statistics done for R.W. trends
+ No statistics done for wavelength trends
