@@ -1,0 +1,29 @@
+synth
+terminal       'x11'
+standard_out   'synth/M15-star-11_Zr4209.out1'
+summary_out    'synth/M15-star-11_Zr4209.out2'
+smoothed_out   'synth/M15-star-11_Zr4209.out3'
+model_in       'synth/M15-star-11_Zr4209.atm'
+lines_in       'synth/Zr4209.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      9         1
+  40.1090       2.06
+  40.1091      51.00
+  40.1092       3.78
+  40.1094      12.00
+  40.1096       6.80
+ 106.00112      1.08
+ 106.00113     13.10
+ 607.01214      1.08
+ 607.01314     13.10
+flux/int      0
+plot          0
+synlimits
+  4203.980 4213.971  0.01  1.00
+obspectrum    0

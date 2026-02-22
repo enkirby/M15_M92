@@ -1,0 +1,26 @@
+synth
+terminal       'x11'
+standard_out   'synth/M15-star-11_Eu6645.out1'
+summary_out    'synth/M15-star-11_Eu6645.out2'
+smoothed_out   'synth/M15-star-11_Eu6645.out3'
+model_in       'synth/M15-star-11_Eu6645.atm'
+lines_in       'synth/Eu6645.list.linemake'
+strong        0
+atmosphere    1
+molecules     1
+damping       1
+trudamp       1
+lines         1
+scat          1
+isotopes      6         1
+  63.1151       2.14
+  63.1153       1.87
+ 106.00112      1.08
+ 106.00113     13.10
+ 607.01214      1.08
+ 607.01314     13.10
+flux/int      0
+plot          0
+synlimits
+  6640.105 6650.084  0.01  1.00
+obspectrum    0

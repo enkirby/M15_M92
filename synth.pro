@@ -221,7 +221,6 @@ pro synth, ni = ni
   hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
   hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and strtrim(hiresall.name, 2) ne 'M92-star-7')]
   n = n_elements(hiresall)
-
   if ~keyword_set(ni) then begin
     message, 'No star index provided.'
   endif else begin
