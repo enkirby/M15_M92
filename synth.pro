@@ -126,6 +126,8 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
     ul = 0.0d
     return, [0.0d, 0.0d]
   endif
+  std = stddev(hires.ivar[w])
+  w = w[where(hires.ivar[w] lt (mean(hires.ivar[w]) + 5*std))]
 
   x = lambda[w]
   y = hires.spec[w]
