@@ -1,12 +1,12 @@
 M15-star-5                                                                      
-5234./2.15/-2.45/+0.33/1.64                           vt= 1.64 M/H=-2.45        
+5223./2.14/-2.39/+0.47/1.72                           vt= 1.72 M/H=-2.39        
 
-Abundance Results for Species Nd II        (input abundance =  -1.025)
+Abundance Results for Species Nd II        (input abundance =  -0.971)
 wavelength         ID      EP   logGF     EWin   logRWin     abund   delavg
-  4109.450   60.10000   0.320   0.350    48.00    -4.933     0.153    0.184
-  4368.630   60.10000   0.060  -0.810    10.50    -5.619     0.003    0.035
-  4706.540   60.10000   0.000  -0.710     9.40    -5.700    -0.251   -0.219
-average abundance = -0.032     std. deviation =  0.204     #lines =   3
+  4109.450   60.10000   0.320   0.350    41.60    -4.995     0.001    0.048
+  4368.630   60.10000   0.060  -0.810     8.00    -5.737    -0.128   -0.081
+  4706.540   60.10000   0.000  -0.710    15.20    -5.491    -0.013    0.033
+average abundance = -0.047     std. deviation =  0.071     #lines =   3
  No statistics done for E.P. trends
-R.W. correlation:  slope =   0.406  intercept =   2.165  corr. coeff. =   0.838
-wav. correl.:  slope =  -6.793D-04  intercept =   2.954  corr. coeff. =  -0.997
+R.W. correlation:  slope =   0.153  intercept =   0.778  corr. coeff. =   0.817
+wav. correl.:  slope =  -5.889D-06  intercept =  -0.021  corr. coeff. =  -0.025

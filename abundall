@@ -1,4 +1,13 @@
 #!/bin/bash
+
+while getopts "h" opt; do
+  case $opt in
+    h)
+      heenhanced=true
+      ;;
+  esac
+done
+
 sockets=0
 limit=`grep processor /proc/cpuinfo | wc -l`
 #limit=24
@@ -17,5 +26,5 @@ do
 	sleep 1
     done
     echo $j
-    screen -S "abund${j}" -t "abund${j}" -d -m nice -n 10 ./runabund $j
+    screen -S "abund${j}" -t "abund${j}" -d -m nice -n 10 ./runabund $j $@
 done

@@ -39,16 +39,16 @@ pro atlas_to_moog, infile, outfile, vt = vt, tweakels = tweakels, tweakabunds = 
   el5 = 0
   el6 = 0
   readf, lun, Z, el1, abund1, el2, abund2, format = '(18X,D7,17X,2(1X,I1,1X,D7))'
-  feh = alog10(Z) ; Metallicity from Z value
+  logZ = alog10(Z) ; Metallicity from Z value
   els = [el1, el2]
-  abunds = [abund1, abund2]
+  abunds = [abund1, abund2] ; H and He are number densities relative to total number density
 
   ; Read remaining element abundances (16 more lines with 6 elements each)
   for i = 0, 15 do begin
     readf, lun, el1, abund1, el2, abund2, el3, abund3, el4, abund4, el5, abund5, el6, abund6, $
       format = '(17X,6(1X,I2,1X,D6))'
     els = [els, el1, el2, el3, el4, el5, el6]
-    abunds = [abunds, abund1, abund2, abund3, abund4, abund5, abund6]
+    abunds = [abunds, abund1, abund2, abund3, abund4, abund5, abund6] ; log10(number density relative to total number density) - logZ
   endfor
 
   ; Read final element
@@ -56,8 +56,9 @@ pro atlas_to_moog, infile, outfile, vt = vt, tweakels = tweakels, tweakabunds = 
   els = [els, el1]
   abunds = [abunds, abund1]
 
-  ; Convert abundances to absolute scale: log eps = log(N/N_H) + 12.0
-  abunds[2 : n_elements(abunds) - 1] += 12.0 + feh
+  ; Convert abundances to absolute scale: log eps = 12.0 + log(N/N_tot) - log(N_H/Ntot) + 12.0
+  abunds[1] = 12.0 + alog10(abunds[1]) - alog10(abunds[0])
+  abunds[2 : n_elements(abunds) - 1] += 12.0 + logZ - alog10(abunds[0])
   close, lun
   free_lun, lun
 
@@ -87,14 +88,14 @@ pro atlas_to_moog, infile, outfile, vt = vt, tweakels = tweakels, tweakabunds = 
 
   match, els, alphaels, we, wa
   match, e.atomic, alphaels, w1, w2
-  alphafe = mean(abunds[we] - e[w1].solar) - feh ; Mean alpha enhancement
+  alphafe = mean(abunds[we] - e[w1].solar) - logZ ; Mean alpha enhancement
 
   ; -----------------------------------------------------------------
   ; WRITE MOOG FORMAT FILE
   ; -----------------------------------------------------------------
   openw, lun, outfile, /get_lun
   printf, lun, 'KURUCZ'
-  printf, lun, teff, logg, feh, alphafe, vt, $
+  printf, lun, teff, logg, logZ, alphafe, vt, $
     format = '(D5.0,"/",D4.2,"/",D+5.2,"/",D+5.2,"/",D4.2)'
   printf, lun, 'ntau=      72'
 
@@ -107,13 +108,13 @@ pro atlas_to_moog, infile, outfile, vt = vt, tweakels = tweakels, tweakabunds = 
   printf, lun, vt, format = '(E13.3)'
 
   ; Write alpha element abundances
-  printels = [3, 6, 7, 8, 11, 12, 13, 14, 19, 20, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 56, 57, 58, 59, 60, 62, 63, 64, 66, 67, 82]
+  printels = [2, 3, 6, 7, 8, 11, 12, 13, 14, 19, 20, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 56, 57, 58, 59, 60, 62, 63, 64, 66, 67, 82]
   for i = 0, n_elements(tweakels) - 1 do begin
     if not contains(printels, tweakels[i]) then printels = [printels, tweakels[i]]
   endfor
   printels = printels[sort(printels)]
   nels = n_elements(printels)
-  printf, lun, nels, feh, format = '("NATOMS",4X,I2,2X,D8.4)'
+  printf, lun, nels, logZ, format = '("NATOMS",4X,I2,2X,D8.4)'
   for i = 0, nels - 1 do begin
     printf, lun, printels[i], abunds[where(els eq printels[i])], format = '("      ",I2,"    ",D8.4)'
   endfor

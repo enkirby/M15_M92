@@ -9,7 +9,7 @@ pro abundsynth__define
   abundsynth = {Abundsynth, element: ' ', ion: 0, species: 0.0, lambda: 0., ep: 0., loggf: 0., abund: 0., upperlimit: 0, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4), vshift: 0d, vshifterr: 0d}
 end
 
-function run_synth, x, pars, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = R, abund_prev = abund_prev, upteff = upteff, uplogg = uplogg, upvt = upvt, upfeh = upfeh
+function run_synth, x, pars, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = R, abund_prev = abund_prev, heenhanced = heenhanced, upteff = upteff, uplogg = uplogg, upvt = upvt, upfeh = upfeh
   compile_opt idl2
   clight = 2.99792458d5
 
@@ -28,13 +28,13 @@ function run_synth, x, pars, minlambda = minlambda, maxlambda = maxlambda, star 
     wiso = where(e[w].isotope gt 0, niso)
     isotopes = e[w].isotope[wiso]
     isofracs = e[w].atomic ge 31 ? e[w].rfrac[wiso] : e[w].solarfrac[wiso]
-    make_par, parfile = 'synth/' + star + '_' + filename + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + '.atm', outfile = 'synth/' + star + '_' + filename + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13, atomic = e[w].atomic + (e[w].atomic gt 31 ? 0.1 : 0.0), isotopes = isotopes, isofracs = isofracs
+    make_par, parfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', outfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13, atomic = e[w].atomic + (e[w].atomic gt 31 ? 0.1 : 0.0), isotopes = isotopes, isofracs = isofracs
   endif else if e[w].atomic eq 3.0 then begin
     isotopes = [6, 7]
     isofracs = [0.0000001, 1.0 - 0.0000001]
-    make_par, parfile = 'synth/' + star + '_' + filename + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + '.atm', outfile = 'synth/' + star + '_' + filename + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13, atomic = 3.0, isotopes = isotopes, isofracs = isofracs
+    make_par, parfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', outfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13, atomic = 3.0, isotopes = isotopes, isofracs = isofracs
   endif else begin
-    make_par, parfile = 'synth/' + star + '_' + filename + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + '.atm', outfile = 'synth/' + star + '_' + filename + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13
+    make_par, parfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', linefile = 'synth/' + filename + '.list.linemake', atmfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', outfile = 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2', driver = 'synth', minlambda = minlambda, maxlambda = maxlambda, c12c13 = c12c13
   endelse
 
   ; jlcspecies = [3.0, 8.0, 11.0, 12.0, 13.0, 14.0, 19.0, 20.0, 20.1, 21.1, 22.0, 22.1, 23.0, 23.1, 24.0, 24.1, 25.0, 25.1, 26.0, 26.1, 27.0, 28.0, 29.0, 30.0, 38.0, 38.1, 39.1, 40.0, 40.1, 56.1, 57.1, 58.1, 59.1, 60.1, 62.1, 63.1, 64.1, 66.1, 67.1, 82.0, 6.0, 7.0]
@@ -48,14 +48,15 @@ function run_synth, x, pars, minlambda = minlambda, maxlambda = maxlambda, star 
   ; s = sort(tweakel)
 
   flag = ''
+  if keyword_set(heenhanced) then flag += '_He_enhanced'
   if keyword_set(upteff) then flag += '_upteff'
   if keyword_set(uplogg) then flag += '_uplogg'
   if keyword_set(upvt) then flag += '_upvt'
   if keyword_set(upfeh) then flag += '_upfeh'
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + flag + '/output_summary.out', 'synth/' + star + '_' + filename + '.atm', vt = atmpars.vt, tweakels = e[w].atomic, tweakabunds = pars[0]
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + flag + '/output_summary.out', 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', vt = atmpars.vt, tweakels = e[w].atomic, tweakabunds = pars[0]
 
-  spawn, 'MOOGSILENT synth/' + star + '_' + filename + '.par'
-  moog = read_moog_spec('synth/' + star + '_' + filename + '.out2', /newmoog)
+  spawn, 'MOOGSILENT synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
+  moog = read_moog_spec('synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2', /newmoog)
   moogspec = smooth_gauss_wrapper(moog.lambda * (1d + pars[1] / clight), moog.spec, x, x / R / 2.35482)
   return, moogspec
 end
@@ -70,7 +71,7 @@ function synth_ul, pars, df, _extra = _extra
   return, abs(chisq - chi2)
 end
 
-function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror, r = R, ul = ul, noul = noul, upteff = upteff, uplogg = uplogg, upvt = upvt, upfeh = upfeh, startabund = startabund, vr = vr, vshift = vshift
+function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror, r = R, ul = ul, noul = noul, heenhanced = heenhanced, upteff = upteff, uplogg = uplogg, upvt = upvt, upfeh = upfeh, startabund = startabund, vr = vr, vshift = vshift
   compile_opt idl2
   common synth_ul, x, ymp, dymp
   common chisq, chi2
@@ -142,7 +143,7 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   oldxfe = 999d
   perrorv = 0.0
   while loop and iter le maxiter do begin
-    pars = mpfitfun('run_synth', x, ymp, dymp, parinfo = pi, /nocatch, bestnorm = chisq0, dof = dof, perror = perror, ftol = 1d-10, gtol = 1d-10, xtol = 1d-10, covar = covar, status = status, yfit = ymoog, nprint = 1000, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev, upteff: keyword_set(upteff), uplogg: keyword_set(uplogg), upvt: keyword_set(upvt), upfeh: keyword_set(upfeh)})
+    pars = mpfitfun('run_synth', x, ymp, dymp, parinfo = pi, /nocatch, bestnorm = chisq0, dof = dof, perror = perror, ftol = 1d-10, gtol = 1d-10, xtol = 1d-10, covar = covar, status = status, yfit = ymoog, nprint = 1000, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced), upteff: keyword_set(upteff), uplogg: keyword_set(uplogg), upvt: keyword_set(upvt), upfeh: keyword_set(upfeh)})
     pi.value = pars
     if pi[1].fixed eq 0 then perrorv = perror[1]
     pi[1].fixed = 1
@@ -175,12 +176,12 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
 
   if ~keyword_set(noul) then begin
     chi2 = 0.0
-    chisq0 = synth_ul(pars, 0.0, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = R, abund_prev = abund_prev)
+    chisq0 = synth_ul(pars, 0.0, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = R, abund_prev = abund_prev, heenhanced = heenhanced)
     chi2 = chisq0 + 9.0
     pi[0].limits = [pars[0], 5.0]
     pi[0].step = 0.05
     pi[0].value = (pars[0] + pi[0].step)
-    result = tnmin('synth_ul', parinfo = pi, quiet = 0, bestmin = bestmin, /autoderivative, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev})
+    result = tnmin('synth_ul', parinfo = pi, quiet = 0, bestmin = bestmin, /autoderivative, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced)})
     ul = result[0]
     ; chisqul3 = bestmin + chi2
   endif
@@ -188,12 +189,12 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   return, pars
 end
 
-pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr
+pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr, heenhanced = heenhanced
   compile_opt idl2
   nsynths = n_elements(abundsynth)
 
   for k = 0, nsynths - 1 do begin
-    abund = calculate_xfe(name, abundsynth[k].element, abund_prev, perror = abunderr, r = R, ul = abundul, wave = round(abundsynth[k].lambda), vr = vr)
+    abund = calculate_xfe(name, abundsynth[k].element, abund_prev, perror = abunderr, r = R, ul = abundul, wave = round(abundsynth[k].lambda), vr = vr, heenhanced = heenhanced)
     abundsynth[k].vshift = abund[1]
     abundsynth[k].vshifterr = abunderr[1]
     if abunderr[0] gt 0.15 then begin
@@ -204,10 +205,10 @@ pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr
       abundsynth[k].abunderr = abunderr[0]
       abundsynth[k].upperlimit = 0
 
-      abund_upteff = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upteff, startabund = abund, vr = vr, vshift = abundsynth[k].vshift)
-      abund_uplogg = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /uplogg, startabund = abund, vr = vr, vshift = abundsynth[k].vshift)
-      abund_upvt = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upvt, startabund = abund, vr = vr, vshift = abundsynth[k].vshift)
-      abund_upfeh = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upfeh, startabund = abund, vr = vr, vshift = abundsynth[k].vshift)
+      abund_upteff = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upteff, startabund = abund, vr = vr, vshift = abundsynth[k].vshift, heenhanced = heenhanced)
+      abund_uplogg = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /uplogg, startabund = abund, vr = vr, vshift = abundsynth[k].vshift, heenhanced = heenhanced)
+      abund_upvt = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upvt, startabund = abund, vr = vr, vshift = abundsynth[k].vshift, heenhanced = heenhanced)
+      abund_upfeh = calculate_xfe(name, abundsynth[k].element, abund_prev, r = R, /noul, wave = round(abundsynth[k].lambda), /upfeh, startabund = abund, vr = vr, vshift = abundsynth[k].vshift, heenhanced = heenhanced)
       abundsynth[k].upteff = abund_upteff[0] - abund[0]
       abundsynth[k].uplogg = abund_uplogg[0] - abund[0]
       abundsynth[k].upvt = abund_upvt[0] - abund[0]
@@ -216,7 +217,7 @@ pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr
   endfor
 end
 
-pro synth, ni = ni
+pro synth, ni = ni, heenhanced = heenhanced
   compile_opt idl2
   e = elements(/newmoog)
 
@@ -231,6 +232,7 @@ pro synth, ni = ni
     ; filestring = string(fix(ni), format = '(I02)')
     filestring = strtrim(hiresall[ni].name, 2)
   endelse
+  if keyword_set(heenhanced) then filestring += '_heenhanced'
   synthfilename = 'synth/abundsynth_' + filestring + '.fits'
 
   cat = mrdfits('M15_M92_catalog.fits', 1, /silent)
@@ -318,7 +320,7 @@ pro synth, ni = ni
     w = where(ew.doppwidth gt 0 and ew.rate lt 0.1)
     hiresall[i].r = 1.1 * median(ew[w].lambda / (ew[w].doppwidth * 1.66511))
 
-    error_analysis_synth, abundsynth, abund_prev, name = name, r = hiresall[i].r, vr = hiresall[i].vr
+    error_analysis_synth, abundsynth, abund_prev, name = name, r = hiresall[i].r, vr = hiresall[i].vr, heenhanced = heenhanced
 
     mwrfits, abundsynth, synthfilename, /create
   endfor

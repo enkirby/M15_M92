@@ -1,7 +1,7 @@
 abfind
 terminal       'x11'
 standard_out   'ew/M15-star-8_teffphot.out1'
-summary_out    'ew/M15-star-8_teffphot_ul.out2'
+summary_out    'ew/M15-star-8_teffphot.out2'
 smoothed_out   'ew/M15-star-8_teffphot.out3'
 model_in       'ew/M15-star-8_teffphot.atm'
 lines_in       'ew/M15-star-8_teffphot_temp.ew'

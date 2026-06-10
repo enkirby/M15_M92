@@ -1,4 +1,26 @@
 #!/bin/bash
-eidl2<<EOF
-abundmc, ni='${BASH_ARGV[0]}'
+
+heenhanced=false
+args=()
+for arg in "$@"; do
+  case $arg in
+    -h|--he-enhanced)
+      heenhanced=true
+      ;;
+    *)
+      args+=("$arg")
+      ;;
+  esac
+done
+
+if [[ "$heenhanced" == "true" ]]; then
+  echo "Running with He-enhanced models."
+  eidl2<<EOF
+  abund, ni='${args[0]}', /heenhanced
 EOF
+else
+  echo "Running with standard models."
+  eidl2<<EOF
+  abundmc, ni='${args[0]}'
+EOF
+fi

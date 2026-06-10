@@ -335,7 +335,8 @@ function find_abund, par, star = star, chimask = chimask, fe1 = fe1, dfe1 = fe1e
   endfor
   if dirflag eq '' then abund = abund[where(abund.ewerr gt 0)]
   ; Add EW errors to abundance structure
-  abund = struct_addtags(abund, replicate({ewerr: 0d, rwerr: 0d}, n_elements(abund)))
+  if ~contains(tag_names(abund), 'EWERR') then abund = struct_addtags(abund, replicate({ewerr: 0d}, n_elements(abund)))
+  if ~contains(tag_names(abund), 'RWERR') then abund = struct_addtags(abund, replicate({rwerr: 0d}, n_elements(abund)))
   for i = 0, n_elements(abund) - 1 do begin
     w = where(abs(ews.lambda - abund[i].lambda) lt (strtrim(abund[i].element, 2) eq 'Li' ? 0.10 : 0.35) and $
       strtrim(strmid(ews.name, 0, 2), 2) eq strtrim(abund[i].element, 2) and $
@@ -521,7 +522,7 @@ function find_abund_final, par, star = star, chimask = chimask, $
   ferwslope = ferwslope, dferwslope = ferwslopeerr, $
   tiepslope = tiepslope, dtiepslope = tiepslopeerr, $
   tirwslope = tirwslope, dtirwslope = tirwslopeerr, $
-  teffphot = teffphot, dirflag = dirflag
+  teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced
   compile_opt idl2
   common ews, ews
   if ~keyword_set(dirflag) then dirflag = ''
@@ -536,10 +537,10 @@ function find_abund_final, par, star = star, chimask = chimask, $
   ; -----------------------------------------------------------------
   ; CONVERT ATLAS ATMOSPHERE AND RUN MOOG
   ; -----------------------------------------------------------------
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', $
-    dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = vt
-  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
-  abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', $
+    dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', vt = vt
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
+  abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2')
 
   ; Add EW error fields
   abund = struct_addtags(abund, replicate({ewerr: 0d, rwerr: 0d}, n_elements(abund)))
@@ -711,7 +712,7 @@ end
 ;
 ; =================================================================
 function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
-  uperr = uperr, downerr = downerr
+  uperr = uperr, downerr = downerr, heenhanced = heenhanced
   compile_opt idl2
   common ews, ews
   dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
@@ -733,12 +734,12 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
   nlines = trim_linelist(star, /nothyperfine, $
     teffphot = teffphot, dirflag = dirflag, $
     uperr = uperr, downerr = downerr)
-  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-    atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+    atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
     driver = 'abfind', $
     linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-    outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2'
-  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+    outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2'
+  spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
 
   ; -----------------------------------------------------------------
   ; PROCESS HYPERFINE STRUCTURE ELEMENTS (detections)
@@ -762,21 +763,21 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
 
       ; Create parameter file with isotope information (if multiple isotopes)
       if niso gt 1 and hyperfine_el[i] ne 38 then begin
-        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
           driver = 'blends', $
           linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '.out2', $
+          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_' + hyperfine_name[i] + '.out2', $
           atomic = atomic, isotopes = isotopes, isofracs = isofracs
       endif else begin
-        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
           driver = 'blends', $
           linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '.out2', $
+          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_' + hyperfine_name[i] + '.out2', $
           atomic = atomic
       endelse
-      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
     endif
   endfor
 
@@ -787,12 +788,12 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
     /upperlimit, dirflag = dirflag, $
     uperr = uperr, downerr = downerr)
   if nlinesul gt 0 then begin
-    make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-      atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+    make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+      atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
       driver = 'abfind', $
       linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-      outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_ul.out2'
-    spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+      outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_ul.out2'
+    spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
   endif
 
   ; -----------------------------------------------------------------
@@ -810,21 +811,21 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
       isofracs = hyperfine_el[i] ge 31 ? e[wel].rfrac[wiso] : e[wel].solarfrac[wiso]
 
       if niso gt 1 and hyperfine_el[i] ne 38 then begin
-        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
           driver = 'blends', $
           linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '_ul.out2', $
+          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_' + hyperfine_name[i] + '_ul.out2', $
           atomic = atomic, isotopes = isotopes, isofracs = isofracs
       endif else begin
-        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+        make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+          atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
           driver = 'blends', $
           linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_' + hyperfine_name[i] + '_ul.out2', $
+          outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_' + hyperfine_name[i] + '_ul.out2', $
           atomic = atomic
       endelse
-      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par'
+      spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
     endif
   endfor
 
@@ -832,21 +833,20 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
   ; COMBINE ALL MOOG OUTPUTS
   ; -----------------------------------------------------------------
   ; Read normal lines
-  abund = read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2')
+  abund = read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2')
 
   ; Append hyperfine structure results
   for i = 0, nhyper - 1 do begin
     if nlineshyper[i] gt 0 then begin
       abund = struct_append(abund, $
-        read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + $
-          '_' + hyperfine_name[i] + '.out2', /blends))
+        read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_' + hyperfine_name[i] + '.out2', /blends))
     endif
   endfor
 
   ; Append upper limit results (normal lines)
   if nlinesul gt 0 then begin
     abund = struct_append(abund, $
-      read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '_ul.out2', $
+      read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '_ul.out2', $
         /upperlimit))
   endif
 
@@ -854,7 +854,7 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
   for i = 0, nhyper - 1 do begin
     if nlineshyperul[i] gt 0 then begin
       abund = struct_append(abund, $
-        read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + $
+        read_moog(dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + $
           '_' + hyperfine_name[i] + '_ul.out2', $
           /upperlimit, /blends))
     endif
@@ -955,7 +955,7 @@ function error_analysis, star, abunds, teffphot = teffphot
   return, abund
 end
 
-function error_analysis_final, star, abunds, teffphot = teffphot
+function error_analysis_final, star, abunds, teffphot = teffphot, heenhanced = heenhanced
   compile_opt idl2
   common ews, ews
   teffphot = keyword_set(teffphot) ? 1 : 0
@@ -970,14 +970,14 @@ function error_analysis_final, star, abunds, teffphot = teffphot
   dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
   ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   newstr = {uperr: -999d, downerr: -999d, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4)}
   na = n_elements(abund)
   abund = struct_addtags(abund, replicate(newstr, na))
 
-  abund_uperr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /uperr)
-  abund_downerr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /downerr)
+  abund_uperr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /uperr, heenhanced = heenhanced)
+  abund_downerr = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, /downerr, heenhanced = heenhanced)
   match, abund.lambda, abund_uperr.lambda, w1, w2
   abund[w1].uperr = abund_uperr[w2].abund - abund[w1].abund
   match, abund.lambda, abund_downerr.lambda, w1, w2
@@ -993,23 +993,23 @@ function error_analysis_final, star, abunds, teffphot = teffphot
   endif
   abund.abunderr = (abund.uperr - abund.downerr) / 2.
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
-  abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upteff.lambda, w1, w2
   abund[w1].upteff = abund_upteff[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
-  abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_uplogg.lambda, w1, w2
   abund[w1].uplogg = abund_uplogg[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
-  abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
+  abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upvt.lambda, w1, w2
   abund[w1].upvt = abund_upvt[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
-  abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
+  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upfeh.lambda, w1, w2
   abund[w1].upfeh = abund_upfeh[w2].abund - abund[w1].abund
   return, abund
@@ -1041,7 +1041,7 @@ end
 ; Iterates stellar parameters until Fe I/II slopes and difference converge.
 ;
 ; =================================================================
-pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final
+pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final, heenhanced = heenhanced
   compile_opt idl2
   common ews, ews
 
@@ -1115,11 +1115,11 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final
   ; -----------------------------------------------------------------
   ; Create parameter file for Fe and alpha element lines
   nlines = trim_linelist(star, /fe, /alpha, teffphot = teffphot, dirflag = dirflag)
-  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.par', $
-    atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', $
+  make_par, parfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par', $
+    atmfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', $
     driver = 'abfind', $
     linefile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '_temp.ew', $
-    outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + '.out2'
+    outfile = dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2'
 
   ; MPFIT parameter structure: Teff, log(g), v_t
   pars = {value: 0d, fixed: 0, name: ' ', limited: [1, 1], limits: [0d, 0d], $
@@ -1146,15 +1146,20 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final
   ; RUN OPTIMIZATION
   ; -----------------------------------------------------------------
   functargs = {star: star, chimask: chimask, teffphot: teffphot, verbose: 1, $
-    dirflag: dirflag2, fixedfeh: feh_mean}
+    dirflag: dirflag2, fixedfeh: feh_mean, heenhanced: keyword_set(heenhanced)}
   p = mpfit('find_abund' + (keyword_set(final) ? '_final' : ''), $
     parinfo = pars, functargs = functargs, /nocatch, $
     ftol = 1d-12, xtol = 1d-12, gtol = 1d-12, $
     status = status, errmsg = errmsg, perror = perror)
-  chi = find_abund(p, star = star, chimask = chimask, teffphot = teffphot, $
-    verbose = verbose, dirflag = dirflag2, fixedfeh = feh_mean, $
-    feh = fehmp, errfeh = errfehmp, alphafe = alphafemp, $
-    erralphafe = erralphafemp)
+  if keyword_set(final) then begin
+    chi = find_abund_final(p, star = star, chimask = chimask, teffphot = teffphot, $
+      dirflag = dirflag2, heenhanced = keyword_set(heenhanced))
+  endif else begin
+    chi = find_abund(p, star = star, chimask = chimask, teffphot = teffphot, $
+      verbose = verbose, dirflag = dirflag2, fixedfeh = feh_mean, $
+      feh = fehmp, errfeh = errfehmp, alphafe = alphafemp, $
+      erralphafe = erralphafemp, heenhanced = keyword_set(heenhanced))
+  endelse
 
   ; -----------------------------------------------------------------
   ; STORE OPTIMIZED PARAMETERS
@@ -1168,22 +1173,22 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final
   if ~keyword_set(fixedmet) then begin
     abunds.feh = fehmp
     abunds.feherr = errfehmp
+    abunds.alphafe = alphafemp
+    abunds.alphafeerr = erralphafemp
   endif
-  abunds.alphafe = alphafemp
-  abunds.alphafeerr = erralphafemp
-
+  
   ; -----------------------------------------------------------------
   ; CALCULATE FINAL ABUNDANCES AND ERRORS
   ; -----------------------------------------------------------------
   if keyword_set(final) then begin
-    abund = error_analysis_final(star, abunds, teffphot = teffphot)
+    abund = error_analysis_final(star, abunds, teffphot = teffphot, heenhanced = heenhanced)
   endif else begin
     abund = error_analysis(star, abunds, teffphot = teffphot)
   endelse
   if dirflag eq '' then abund = abund[where(abund.ewerr gt 0 or abund.upperlimit eq 1)]
 
-  mwrfits, abund, dirflag2 + star + '_abundbyline' + (teffphot ? '_teffphot' : '') + '.fits', /create
-  mwrfits, abunds, dirflag2 + star + '_abund' + (teffphot ? '_teffphot' : '') + '.fits', /create
+  mwrfits, abund, dirflag2 + star + '_abundbyline' + (teffphot ? '_teffphot' : '') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.fits', /create
+  mwrfits, abunds, dirflag2 + star + '_abund' + (teffphot ? '_teffphot' : '') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.fits', /create
 end
 
 ; =================================================================
@@ -1208,7 +1213,7 @@ end
 ; abund, /final            ; Process all stars with final mode
 ;
 ; =================================================================
-pro abund, ni = ni, final = final
+pro abund, ni = ni, final = final, heenhanced = heenhanced
   compile_opt idl2
 
   ; Load catalog
@@ -1229,8 +1234,8 @@ pro abund, ni = ni, final = final
 
   ; Loop over stars
   for i = istart, iend do begin
-    if keyword_set(final) then begin
-      hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /final
+    if 1 or keyword_set(final) then begin
+      hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /fixedmet, /final, heenhanced = heenhanced
     endif else begin
       hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /fixedmet
     endelse
