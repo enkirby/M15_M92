@@ -1,17 +1,10 @@
 #!/bin/bash
 
-while getopts "h" opt; do
-  case $opt in
-    h)
-      heenhanced=true
-      ;;
-  esac
-done
-
 sockets=0
-limit=`grep processor /proc/cpuinfo | wc -l`
+#limit=`grep processor /proc/cpuinfo | wc -l`
+limit=`nproc`
 #limit=24
-for ((j=0; j<=20; j++))
+for ((j=0; j<=19; j++))
 do
     screenstring=`screen -ls | grep Socket`
     sockets=${screenstring:0:2}

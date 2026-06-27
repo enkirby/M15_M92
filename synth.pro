@@ -53,7 +53,7 @@ function run_synth, x, pars, minlambda = minlambda, maxlambda = maxlambda, star 
   if keyword_set(uplogg) then flag += '_uplogg'
   if keyword_set(upvt) then flag += '_upvt'
   if keyword_set(upfeh) then flag += '_upfeh'
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + flag + '/output_summary.out', 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', vt = atmpars.vt, tweakels = e[w].atomic, tweakabunds = pars[0]
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + flag + '/output_summary.out', 'synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', vt = atmpars.vt, tweakels = e[w].atomic, tweakabunds = pars[0]
 
   spawn, 'MOOGSILENT synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
   moog = read_moog_spec('synth/' + star + '_' + filename + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2', /newmoog)
@@ -116,19 +116,22 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   endwhile
   close, lun
   free_lun, lun
+  meanlambda = (minlambda + maxlambda) / 2.0
 
   clight = 2.99792458d5
 
   lambda = hires.lambda / (1d + vr / clight)
   airtovac, lambda
-  w = where(lambda ge minlambda and lambda le maxlambda and finite(hires.ivar) and hires.ivar gt 0.0, c)
+  w = where(lambda ge minlambda and lambda le maxlambda and finite(hires.ivar) and hires.ivar gt 0.0 and (lambda lt 5168.0 or lambda gt 5170.0) and (lambda lt 5891.2 or lambda gt 5895.0) and (lambda lt 5897.1 or lambda gt 5899.5), c)
   if c lt 10 then begin
     perror = [0.0d, 0.0d]
     ul = 0.0d
     return, [0.0d, 0.0d]
   endif
   std = stddev(hires.ivar[w])
-  w = w[where(hires.ivar[w] lt (mean(hires.ivar[w]) + 5*std))]
+  ; if abs(meanlambda - 5893.0) gt 10 and abs(meanlambda - 5180.0) gt 10 then begin
+  w = w[where(hires.ivar[w] lt (mean(hires.ivar[w]) + 10 * std))]
+  ; endif
 
   x = lambda[w]
   y = hires.spec[w]
@@ -137,13 +140,15 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   dymp = dy
 
   if ~keyword_set(wave) then wave = 0b
+  Rsynth = R
+  if abs(5893 - meanlambda) lt 10 then Rsynth *= 1.375 else Rsynth *= 1.2
 
   iter = 0l
   loop = 1b
   oldxfe = 999d
   perrorv = 0.0
   while loop and iter le maxiter do begin
-    pars = mpfitfun('run_synth', x, ymp, dymp, parinfo = pi, /nocatch, bestnorm = chisq0, dof = dof, perror = perror, ftol = 1d-10, gtol = 1d-10, xtol = 1d-10, covar = covar, status = status, yfit = ymoog, nprint = 1000, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced), upteff: keyword_set(upteff), uplogg: keyword_set(uplogg), upvt: keyword_set(upvt), upfeh: keyword_set(upfeh)})
+    pars = mpfitfun('run_synth', x, ymp, dymp, parinfo = pi, /nocatch, bestnorm = chisq0, dof = dof, perror = perror, ftol = 1d-10, gtol = 1d-10, xtol = 1d-10, covar = covar, status = status, yfit = ymoog, nprint = 1000, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: Rsynth, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced), upteff: keyword_set(upteff), uplogg: keyword_set(uplogg), upvt: keyword_set(upvt), upfeh: keyword_set(upfeh)})
     pi.value = pars
     if pi[1].fixed eq 0 then perrorv = perror[1]
     pi[1].fixed = 1
@@ -173,15 +178,16 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   ; oplot, x, ymoog, color = fsc_color('red')
   ; ; oplot, x, resid, color = fsc_color('blue')
   ; oplot, x, replicate(1.0, c), color = fsc_color('orange')
+  ; stop
 
   if ~keyword_set(noul) then begin
     chi2 = 0.0
-    chisq0 = synth_ul(pars, 0.0, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = R, abund_prev = abund_prev, heenhanced = heenhanced)
+    chisq0 = synth_ul(pars, 0.0, minlambda = minlambda, maxlambda = maxlambda, star = star, element = element, wave = wave, atmpars = atmpars, r = Rsynth, abund_prev = abund_prev, heenhanced = heenhanced)
     chi2 = chisq0 + 9.0
     pi[0].limits = [pars[0], 5.0]
     pi[0].step = 0.05
     pi[0].value = (pars[0] + pi[0].step)
-    result = tnmin('synth_ul', parinfo = pi, quiet = 0, bestmin = bestmin, /autoderivative, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: R, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced)})
+    result = tnmin('synth_ul', parinfo = pi, quiet = 0, bestmin = bestmin, /autoderivative, functargs = {minlambda: minlambda, maxlambda: maxlambda, star: star, element: element, wave: wave, atmpars: atmpars, r: Rsynth, abund_prev: abund_prev, heenhanced: keyword_set(heenhanced)})
     ul = result[0]
     ; chisqul3 = bestmin + chi2
   endif
@@ -189,11 +195,12 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   return, pars
 end
 
-pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr, heenhanced = heenhanced
+pro error_analysis_synth, abundsynth, abund_prev, name = name, r = R, vr = vr, heenhanced = heenhanced, lineindices = lineindices
   compile_opt idl2
-  nsynths = n_elements(abundsynth)
+  nsynths = n_elements(lineindices)
 
-  for k = 0, nsynths - 1 do begin
+  for j = 0, nsynths - 1 do begin
+    k = lineindices[j]
     abund = calculate_xfe(name, abundsynth[k].element, abund_prev, perror = abunderr, r = R, ul = abundul, wave = round(abundsynth[k].lambda), vr = vr, heenhanced = heenhanced)
     abundsynth[k].vshift = abund[1]
     abundsynth[k].vshifterr = abunderr[1]
@@ -235,7 +242,7 @@ pro synth, ni = ni, heenhanced = heenhanced
   if keyword_set(heenhanced) then filestring += '_heenhanced'
   synthfilename = 'synth/abundsynth_' + filestring + '.fits'
 
-  cat = mrdfits('M15_M92_catalog.fits', 1, /silent)
+  cat = mrdfits('M15_M92_catalog' + (keyword_set(heenhanced) ? '_he-enhanced' : '_normal') + '.fits', 1, /silent)
   element_names = mrdfits('M15_M92_elements.fits', 1, /silent)
   match, strtrim(e.name), strtrim(element_names.element), w1, w2
   catspecies = e[w1].atomic
@@ -262,11 +269,11 @@ pro synth, ni = ni, heenhanced = heenhanced
   endfor
 
   readcol, '../M92_KOA/Ji20_linelist.moog', lambda, species, ep, loggf, format = 'D,F,D,D', skipline = 1, /silent
-  synthspecies = [13.0, 38.1, 39.1, 40.1, 56.1, 57.1, 63.1, 66.1]
+  synthspecies = [11.0, 12.0, 13.0, 38.1, 39.1, 40.1, 56.1, 57.1, 63.1, 66.1]
   wlines = [-1]
   nlines = 0
   for j = 0, n_elements(synthspecies) - 1 do begin
-    wlinesj = where(round(species * 10.) eq round(synthspecies[j] * 10.), nlinesj)
+    wlinesj = where((round(species * 10.) eq round(synthspecies[j] * 10.) and ((lambda gt 5160 and lambda lt 5190) or floor(species) ne 12)), nlinesj)
     if nlinesj eq 0 then message, 'Species not found.'
     wlines = [wlines, wlinesj]
     nlines += nlinesj
@@ -306,11 +313,16 @@ pro synth, ni = ni, heenhanced = heenhanced
         abundsynth[j].uplogg = abundsynth_old[w].uplogg
         abundsynth[j].upvt = abundsynth_old[w].upvt
         abundsynth[j].upfeh = abundsynth_old[w].upfeh
+        abundsynth[j].upalphafe = abundsynth_old[w].upalphafe
         abundsynth[j].weight = abundsynth_old[w].weight
+        abundsynth[j].delta = abundsynth_old[w].delta
       endif
     endfor
   endif
-  nsynths = n_elements(abundsynth)
+
+  lineindices = indgen(extrasynths + nlines)
+  ; lineindices = where((floor(abundsynth.species) eq 11 and abundsynth.lambda gt 5800) or floor(abundsynth.species) eq 12)
+  ; lineindices = where(floor(abundsynth.species) gt 8)
 
   for i = istart, iend do begin
     name = strtrim(hiresall[i].name, 2)
@@ -318,10 +330,12 @@ pro synth, ni = ni, heenhanced = heenhanced
     ewfile = 'ew/' + name + '_Ji20_ew.fits'
     ew = mrdfits(ewfile, 1, /silent)
     w = where(ew.doppwidth gt 0 and ew.rate lt 0.1)
-    hiresall[i].r = 1.1 * median(ew[w].lambda / (ew[w].doppwidth * 1.66511))
+    hiresall[i].r = 1.2 * median(ew[w].lambda / (ew[w].doppwidth * 1.66511))
+    ; print, 'Star: ', name, ' R = ', hiresall[i].r
 
-    error_analysis_synth, abundsynth, abund_prev, name = name, r = hiresall[i].r, vr = hiresall[i].vr, heenhanced = heenhanced
+    error_analysis_synth, abundsynth, abund_prev, name = name, r = hiresall[i].r, vr = hiresall[i].vr, heenhanced = heenhanced, lineindices = lineindices
 
+    ; stop
     mwrfits, abundsynth, synthfilename, /create
   endfor
 end

@@ -595,10 +595,10 @@ pro measure_vr
       vrerr = sqrt((clight * zerr) ^ 2 + vrerr_ref ^ 2)
 
       ; Optional: Plot comparison of reference and object spectra
-      splot, logwave / (1d + vr_ref / clight), specref / median(specref[wr]), $
-        xrange = [4440, 4447]
-      soplot, logwave / (1d + vr / clight), spec / median(spec[wr]), $
-        color = fsc_color('red')
+      ;splot, logwave / (1d + vr_ref / clight), specref / median(specref[wr]), $
+      ;  xrange = [4440, 4447]
+      ;soplot, logwave / (1d + vr / clight), spec / median(spec[wr]), $
+      ;  color = fsc_color('red')
     endif else begin
       ; This is the reference star itself
       vr = vr_ref

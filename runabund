@@ -1,11 +1,18 @@
 #!/bin/bash
 
-heenhanced=false
+mcmc=false
+flags=""
 args=()
 for arg in "$@"; do
   case $arg in
     -h|--he-enhanced)
-      heenhanced=true
+      flags+=", /final, /heenhanced"
+      ;;
+    -f|--final)
+      flags+=", /final"
+      ;;
+    -m|--mcmc)
+      mcmc=true
       ;;
     *)
       args+=("$arg")
@@ -13,14 +20,14 @@ for arg in "$@"; do
   esac
 done
 
-if [[ "$heenhanced" == "true" ]]; then
-  echo "Running with He-enhanced models."
+if [[ "$mcmc" == "true" ]]; then
+   echo "Running in MCMC mode."
   eidl2<<EOF
-  abund, ni='${args[0]}', /heenhanced
+  abundmc, ni='${args[0]}'
 EOF
 else
   echo "Running with standard models."
   eidl2<<EOF
-  abundmc, ni='${args[0]}'
+  abund, ni='${args[0]}'${flags}
 EOF
 fi

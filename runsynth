@@ -1,26 +1,19 @@
 #!/bin/bash
 
-heenhanced=false
+flags=""
 args=()
 for arg in "$@"; do
   case $arg in
     -h|--he-enhanced)
-      heenhanced=true
-      ;;
+      flags+=", /heenhanced"
+      ;;&
     *)
       args+=("$arg")
       ;;
   esac
 done
 
-if [[ "$heenhanced" == "true" ]]; then
-  echo "Running with He-enhanced models."
-  eidl2<<EOF
-  synth, ni='${args[0]}', /heenhanced
+echo "Running with standard models."
+eidl2<<EOF
+synth, ni='${args[0]}'${flags}
 EOF
-else
-  echo "Running with standard models."
-  eidl2<<EOF
-  synth, ni='${args[0]}'
-EOF
-fi

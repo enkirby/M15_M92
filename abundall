@@ -1,13 +1,5 @@
 #!/bin/bash
 
-while getopts "h" opt; do
-  case $opt in
-    h)
-      heenhanced=true
-      ;;
-  esac
-done
-
 sockets=0
 limit=`grep processor /proc/cpuinfo | wc -l`
 #limit=24

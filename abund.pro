@@ -203,7 +203,7 @@ function trim_linelist, star, atomic = atomic, teffphot = teffphot, ti = ti, fe 
     ; hyperfine.damping = damping
   endif
 
-  fout = getenv('CALTECH') + 'hires/M15_M92/' + dirflag + strtrim(star, 2) + (~keyword_set(teffphot) ? '' : '_teffphot') + '_temp.ew'
+  fout = getenv('CALTECH') + 'hires/M15_M92_bprp/' + dirflag + strtrim(star, 2) + (~keyword_set(teffphot) ? '' : '_teffphot') + '_temp.ew'
   openw, lun, fout, /get_lun
   printf, lun, star
   case 1 of
@@ -511,7 +511,7 @@ end
 ; chi - Array of normalized equilibrium diagnostics
 ;
 ; METHOD:
-; Uses ATLAS model atmospheres from /raid/atlas/BasicATLAS/ATLAS_LMHA_{star}/.
+; Uses ATLAS model atmospheres from /raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_{star}/.
 ; Otherwise identical to find_abund function.
 ;
 ; =================================================================
@@ -537,7 +537,7 @@ function find_abund_final, par, star = star, chimask = chimask, $
   ; -----------------------------------------------------------------
   ; CONVERT ATLAS ATMOSPHERE AND RUN MOOG
   ; -----------------------------------------------------------------
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', $
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', $
     dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.atm', vt = vt
   spawn, 'MOOGSILENT ' + dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.par'
   abund = read_moog(dirflag + star + (teffphot eq 0 ? '' : '_teffphot') + (keyword_set(heenhanced) ? '_heenhanced' : '') + '.out2')
@@ -715,7 +715,7 @@ function calculate_abund, star, teffphot = teffphot, dirflag = dirflag, $
   uperr = uperr, downerr = downerr, heenhanced = heenhanced
   compile_opt idl2
   common ews, ews
-  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/' + dirflag
   e = elements(/newmoog)
 
   ; -----------------------------------------------------------------
@@ -906,7 +906,7 @@ function error_analysis, star, abunds, teffphot = teffphot
   hiresall = hiresall[where(hiresall.gmag0 lt 18.5 and strtrim(hiresall.name, 2) ne 'X-20' and strtrim(hiresall.name, 2) ne 'S2303')]
 
   dirflag = 'ew/'
-  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/' + dirflag
   ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
 
   interp_atm, abunds.teff, abunds.logg, abunds.vt, abunds.feh, abunds.alphafe, outfile = dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm'
@@ -967,10 +967,10 @@ function error_analysis_final, star, abunds, teffphot = teffphot, heenhanced = h
   hiresall = hiresall[where(hiresall.gmag0 lt 18.5 and strtrim(hiresall.name, 2) ne 'X-20' and strtrim(hiresall.name, 2) ne 'S2303')]
 
   dirflag = 'ew2/'
-  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/' + dirflag
   ews = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund = calculate_abund(star, teffphot = teffphot, dirflag = dirflag)
   newstr = {uperr: -999d, downerr: -999d, abunderr: -999d, upteff: -999d, uplogg: -999d, upvt: -999d, upfeh: -999d, upalphafe: -999d, weight: 0d, delta: dblarr(4)}
   na = n_elements(abund)
@@ -993,22 +993,22 @@ function error_analysis_final, star, abunds, teffphot = teffphot, heenhanced = h
   endif
   abund.abunderr = (abund.uperr - abund.downerr) / 2.
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upteff/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_upteff = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upteff.lambda, w1, w2
   abund[w1].upteff = abund_upteff[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_uplogg/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_uplogg = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_uplogg.lambda, w1, w2
   abund[w1].uplogg = abund_uplogg[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt + abunds.vterr
   abund_upvt = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upvt.lambda, w1, w2
   abund[w1].upvt = abund_upvt[w2].abund - abund[w1].abund
 
-  atlas_to_moog, '/raid/atlas/BasicATLAS/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
+  atlas_to_moog, '/raid/atlas/BasicATLAS_bprp/ATLAS_LMHA_' + star + (keyword_set(heenhanced) ? '_He_enhanced' : '') + '_upfeh/output_summary.out', dirflag2 + star + (teffphot eq 0 ? '' : '_teffphot') + '.atm', vt = abunds.vt
   abund_upfeh = calculate_abund(star, teffphot = teffphot, dirflag = dirflag, heenhanced = heenhanced)
   match, abund.lambda, abund_upfeh.lambda, w1, w2
   abund[w1].upfeh = abund_upfeh[w2].abund - abund[w1].abund
@@ -1049,10 +1049,10 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final, h
   ; SETUP DIRECTORIES AND DATA
   ; -----------------------------------------------------------------
   dirflag = keyword_set(final) ? 'ew2/' : 'ew/'
-  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/' + dirflag
-  dirflag3 = getenv('CALTECH') + 'hires/M15_M92/ew/'
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/' + dirflag
+  dirflag3 = getenv('CALTECH') + 'hires/M15_M92_bprp/ew/'
   ews = mrdfits(dirflag3 + star + '_Ji20_ew.fits', 1, /silent)
-  allframes = mrdfits(getenv('CALTECH') + 'hires/M15_M92/M15_M92_allframes.fits', 1, /silent)
+  allframes = mrdfits(getenv('CALTECH') + 'hires/M15_M92_bprp/M15_M92_allframes.fits', 1, /silent)
   w = where(strtrim(allframes.name, 2) eq star)
 
   ; -----------------------------------------------------------------
@@ -1158,7 +1158,7 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final, h
     chi = find_abund(p, star = star, chimask = chimask, teffphot = teffphot, $
       verbose = verbose, dirflag = dirflag2, fixedfeh = feh_mean, $
       feh = fehmp, errfeh = errfehmp, alphafe = alphafemp, $
-      erralphafe = erralphafemp, heenhanced = keyword_set(heenhanced))
+      erralphafe = erralphafemp)
   endelse
 
   ; -----------------------------------------------------------------
@@ -1176,7 +1176,7 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final, h
     abunds.alphafe = alphafemp
     abunds.alphafeerr = erralphafemp
   endif
-  
+
   ; -----------------------------------------------------------------
   ; CALCULATE FINAL ABUNDANCES AND ERRORS
   ; -----------------------------------------------------------------
@@ -1234,7 +1234,7 @@ pro abund, ni = ni, final = final, heenhanced = heenhanced
 
   ; Loop over stars
   for i = istart, iend do begin
-    if 1 or keyword_set(final) then begin
+    if keyword_set(final) then begin
       hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /fixedmet, /final, heenhanced = heenhanced
     endif else begin
       hires_loop, strtrim(hiresall[i].name, 2), /teffphot, /fixedmet
@@ -1292,8 +1292,8 @@ pro abundmc, ni = ni
 
   ; Monte Carlo parameters
   nmc = 1000
-  dirflag2 = getenv('CALTECH') + 'hires/M15_M92/ew2/'
-  dirflag3 = getenv('CALTECH') + 'hires/M15_M92/mc/'
+  dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/ew2/'
+  dirflag3 = getenv('CALTECH') + 'hires/M15_M92_bprp/mc/'
 
   ; Physical constants
   sigma_SB = 5.6704d-5 ; Stefan-Boltzmann constant (cgs)
@@ -1304,6 +1304,8 @@ pro abundmc, ni = ni
 
   ; Teff calibration coefficients (BP-RP color relation for giants)
   bprp_giant = [0.5323, 0.4775, -0.0344, -0.0110, -0.0020, -0.0009]
+  bpk_giant = [0.5668, 0.1890, -0.0017, 0.0065, -0.0008, -0.0045]
+  full_teff_error = 1
 
   ; -----------------------------------------------------------------
   ; MONTE CARLO LOOP
@@ -1316,13 +1318,27 @@ pro abundmc, ni = ni
     ews_orig = mrdfits(dirflag2 + star + '_Ji20_ew.fits', 1, /silent)
 
     ; Photometric color for Teff calibration
-    color = hiresall[i].bpmag0 - hiresall[i].rpmag0
-    colorerr = sqrt(hiresall[i].bpmagerr ^ 2. + hiresall[i].rpmagerr ^ 2.)
-    vars = [1d, color, (color) ^ 2., abunds.feh, abunds.feh ^ 2., abunds.feh * (color)]
-    varserr = [0d, 1d, 2. * (color), 0d, 0d, abunds.feh]
-    varserrfeh = [0d, 0d, 0d, 1d, 2. * abunds.feh, color]
-    tefferr = sqrt((abunds.teff * total(bprp_giant * varserr * colorerr) / total(bprp_giant * vars)) ^ 2. + (abunds.teff * total(bprp_giant * varserrfeh * abunds.feherr) / total(bprp_giant * vars)) ^ 2.)
-    teffmc = abunds.teff + tefferr * randomn(seed, nmc) + 83. * randomn(42, nmc) ; add 83 K systematic error
+    if full_teff_error then begin
+      teffmc = abunds.teff + abunds.tefferr * randomn(seed, nmc)
+    endif else begin
+      if strtrim(hiresall[i].teff_mb20_color, 2) eq 'BP-RP(giant)' then begin
+        color = hiresall[i].bpmag0 - hiresall[i].rpmag0
+        colorerr = sqrt(hiresall[i].bpmagerr ^ 2. + hiresall[i].rpmagerr ^ 2.)
+        vars = [1d, color, (color) ^ 2., abunds.feh, abunds.feh ^ 2., abunds.feh * (color)]
+        varserr = [0d, 1d, 2. * (color), 0d, 0d, abunds.feh]
+        varserrfeh = [0d, 0d, 0d, 1d, 2. * abunds.feh, color]
+        tefferr = sqrt((abunds.teff * total(bprp_giant * varserr * colorerr) / total(bprp_giant * vars)) ^ 2. + (abunds.teff * total(bprp_giant * varserrfeh * abunds.feherr) / total(bprp_giant * vars)) ^ 2.)
+        teffmc = abunds.teff + tefferr * randomn(seed, nmc) + 83. * randomn(42, nmc) ; add 83 K systematic error
+      endif else if strtrim(hiresall[i].teff_mb20_color, 2) eq 'BP-Ks(giant)' then begin
+        color = hiresall[i].bpmag0 - hiresall[i].kmag0
+        colorerr = sqrt(hiresall[i].bpmagerr ^ 2. + hiresall[i].kmagerr ^ 2.)
+        vars = [1d, color, (color) ^ 2., abunds.feh, abunds.feh ^ 2., abunds.feh * (color)]
+        varserr = [0d, 1d, 2. * (color), 0d, 0d, abunds.feh]
+        varserrfeh = [0d, 0d, 0d, 1d, 2. * abunds.feh, color]
+        tefferr = sqrt((abunds.teff * total(bpk_giant * varserr * colorerr) / total(bpk_giant * vars)) ^ 2. + (abunds.teff * total(bpk_giant * varserrfeh * abunds.feherr) / total(bpk_giant * vars)) ^ 2.)
+        teffmc = abunds.teff + tefferr * randomn(seed, nmc) + 49. * randomn(42, nmc) ; add 49 K systematic error
+      endif else message, 'Unknown color for Teff calibration: ' + strtrim(hiresall[i].teff_mb20_color, 2)
+    endelse
 
     teffdiff = abunds.teff - 5772d
     bcG = poly(teffdiff, [6d-2, 6.731d-5, -6.647d-8, 2.859d-11, -7.197d-15])
@@ -1341,7 +1357,7 @@ pro abundmc, ni = ni
     alphafemc = abunds.alphafe + abunds.alphafeerr * randomn(seed, nmc)
 
     vt = 2.13 - 0.23 * logg
-    vtmc = 2.13 - 0.23 * loggmc + (0.03 * loggmc) * randomn(seed, nmc)
+    vtmc = 2.13 + 0.05 * randomn(seed, nmc) - 0.23 * loggmc + (0.03 * loggmc) * randomn(seed, nmc)
 
     ews = ews_orig
     interp_atm, abunds.teff, logg, vt, abunds.feh, abunds.alphafe, outfile = dirflag3 + star + '_teffphot.atm'
