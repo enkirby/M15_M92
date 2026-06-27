@@ -8,11 +8,11 @@ This Github repository contains code and data.  Everything in this repo will be 
 
 This code base contains both IDL and Python codes.  The intial spectral preparation, the measurement of equivalent widths, and the abundance measurements per line are done in IDL.  The differential analysis, plotting, and generation of tables is done in a Python notebook.
 
-### make_allframes.pro:
+### make\_allframes.pro:
 
 Create a binary FITS table containing paths to spectra, Gaia photometry, and atmospheric parameters derived from photometry.
 
-### merge_all.pro:
+### merge\_all.pro:
 
 Continuum-normalize the spectra, merge orders, and merge multiple exposures of the same star.
 
@@ -44,28 +44,28 @@ A bash script to run synth.pro on all stars and on different processor threads.
 
 Helper function for synthall.
 
-### m15_m92_atlas.py:
+### m15\_m92\_atlas.py:
 
 Wrapper to compute ATLAS9 model atmospheres with BasicATLAS.
 
-### m15_m92_hires.ipynb:
+### m15\_m92\_hires.ipynb:
 
 A Python notebook to compute the differential abundances, then produce plots and tables.
 
 ## Data:
 
-M15_M92_elements.fits: List of 29 elements in the order given in the following files.
+M15\_M92\_elements.fits: List of 29 elements in the order given in the following files.
 
 {mode}:
 normal: Y=0.25 for all stars
 he-enhanced: Y=0.28 for all stars
-by_population: Y=0.25 for 1P stars, Y=0.28 for 2P stars
+by\_population: Y=0.25 for 1P stars, Y=0.28 for 2P stars
 
-M15_M92_catalog_{mode}.fits: For each star, Gaia information, photometric atmospheric parameters, final atmospheric parameters (TEFF, LOGG, VT), absolute abundances (ABUND), differential abundances (ABUNDDIFF), and the differential abundances plus the average abundances for each cluster (ABUNDDIFFPLUSAVGABUND).  Errors are given for these parameters.
+M15\_M92\_catalog\_{mode}.fits: For each star, Gaia information, photometric atmospheric parameters, final atmospheric parameters (TEFF, LOGG, VT), absolute abundances (ABUND), differential abundances (ABUNDDIFF), and the differential abundances plus the average abundances for each cluster (ABUNDDIFFPLUSAVGABUND).  Errors are given for these parameters.
 
-avg_abund_{mode}.pkl: Much of the same information as the previous FITS file.
+avg\_abund\_{mode}.pkl: Much of the same information as the previous FITS file.
 
-stats_{mode}.pkl: Statistics on abundance dispersions within M92.
+stats\_{mode}.pkl: Statistics on abundance dispersions within M92.
 
 ### spectra:
 
@@ -73,16 +73,16 @@ This directory contains the merged, continuum-normalized spectra.
 
 ### ew:
 
-This directory contains FITS files based on the "first iteration" of abundances, with an assumed ATLAS9 model composition.  The *_abund_teffphot.fits files contain model atmosphere parameters.  The abundances in these files are not used.  The *_abundbyline_teffphot.fits files contain the equivalent widths and abundances measured for each absorption line.
+This directory contains FITS files based on the "first iteration" of abundances, with an assumed ATLAS9 model composition.  The \*\_abund_teffphot.fits files contain model atmosphere parameters.  The abundances in these files are not used.  The \*\_abundbyline\_teffphot.fits files contain the equivalent widths and abundances measured for each absorption line.
 
 ### ew2:
 
-This directory has the same type of FITS files as the *ew* directory, but the abundances are based on the custom ATLAS9 model atmospheres with compositions tailored to each star.  Additionally, the directory contains *_abund_teffphot_heenhanced.fits and *_abundbyline_teffphot_heenhanced.fits for the He-enhanced versions.
+This directory has the same type of FITS files as the *ew* directory, but the abundances are based on the custom ATLAS9 model atmospheres with compositions tailored to each star.  Additionally, the directory contains \*\_abund\_teffphot\_heenhanced.fits and \*\_abundbyline\_teffphot\_heenhanced.fits for the He-enhanced versions.
 
 ### synth:
 
-The abundance information for synthesized lines is given in abundsynth_*.fits.  The He-enhanced versions are abundsynth_*_heenhanced.fits.
+The abundance information for synthesized lines is given in abundsynth\_\*.fits.  The He-enhanced versions are abundsynth\_\*\_heenhanced.fits.
 
 ### mc_partial:
 
-These are the Monte Carlo resampled abundances for each stars when only the partial error on T_eff (the random component) is assumed.  The MC samples are given in *_abundmc_teffphot.fits.
+These are the Monte Carlo resampled abundances for each stars when only the partial error on effective temperature (the random component) is assumed.  The MC samples are given in \*\_abundmc\_teffphot.fits.
