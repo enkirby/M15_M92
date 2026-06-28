@@ -778,7 +778,7 @@ pro hiresspec3::getscience
     td = -1.0 * ts_diff(data.lambda[w], 1)
     pixscale = median(td[where(td gt 0)])
     print, strtrim(pixscale, 2) + ' pix per Ang'
-    SNR_per_pix = (1d / median(abs(1.0 - data.spec[w])))
+    SNR_per_pix = (1d / (1.4826*median(abs(1.0 - data.spec[w]))))
     SNR_per_ang = SNR_per_pix / sqrt(pixscale)
     print, 'S/N = ' + strtrim(SNR_per_pix, 2) + ' per pix'
     print, 'S/N = ' + strtrim(SNR_per_ang, 2) + ' per Ang'
