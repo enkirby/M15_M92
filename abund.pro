@@ -1061,6 +1061,7 @@ pro hires_loop, star, teffphot = teffphot, fixedmet = fixedmet, final = final, h
   teff = allframes[w].teffphot ; Photometric temperature
   tefferr = allframes[w].teffphoterr
   logg = allframes[w].loggphot ; Photometric gravity
+  if keyword_set(heenhanced) then logg += alog10(0.76 / 0.80)
   loggerr = allframes[w].loggphoterr
   feh = -2.41 ; Cluster metallicity
   alphafe = 0.41 ; Cluster alpha enhancement
@@ -1218,8 +1219,8 @@ pro abund, ni = ni, final = final, heenhanced = heenhanced
 
   ; Load catalog
   hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
-  hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and $
-    strtrim(hiresall.name, 2) ne 'M92-star-7')]
+  ; hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and $
+  ; strtrim(hiresall.name, 2) ne 'M92-star-7')]
   hiresall = hiresall[sort(hiresall.name)]
   n = n_elements(hiresall)
 
@@ -1276,8 +1277,8 @@ pro abundmc, ni = ni
 
   ; Load catalog
   hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
-  hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and $
-    strtrim(hiresall.name, 2) ne 'M92-star-7')]
+  ; hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and $
+  ; strtrim(hiresall.name, 2) ne 'M92-star-7')]
   hiresall = hiresall[sort(hiresall.name)]
   n = n_elements(hiresall)
 
@@ -1289,23 +1290,22 @@ pro abundmc, ni = ni
     istart = fix(ni)
     iend = fix(ni)
   endelse
-
   ; Monte Carlo parameters
   nmc = 1000
   dirflag2 = getenv('CALTECH') + 'hires/M15_M92_bprp/ew2/'
-  dirflag3 = getenv('CALTECH') + 'hires/M15_M92_bprp/mc/'
+  dirflag3 = getenv('CALTECH') + 'hires/M15_M92_bprp/mc_partial/'
 
   ; Physical constants
   sigma_SB = 5.6704d-5 ; Stefan-Boltzmann constant (cgs)
   G = 6.674d-8 ; Gravitational constant (cgs)
   Msun = 1.989d33 ; Solar mass (g)
-  M = 0.75 * Msun ; RGB star mass
-  Merr = 0.1 * Msun ; Mass error
+  M = 0.80 * Msun ; RGB star mass
+  Merr = 0.05 * Msun ; Mass error
 
   ; Teff calibration coefficients (BP-RP color relation for giants)
   bprp_giant = [0.5323, 0.4775, -0.0344, -0.0110, -0.0020, -0.0009]
   bpk_giant = [0.5668, 0.1890, -0.0017, 0.0065, -0.0008, -0.0045]
-  full_teff_error = 1
+  full_teff_error = 0
 
   ; -----------------------------------------------------------------
   ; MONTE CARLO LOOP
@@ -1361,13 +1361,13 @@ pro abundmc, ni = ni
 
     ews = ews_orig
     interp_atm, abunds.teff, logg, vt, abunds.feh, abunds.alphafe, outfile = dirflag3 + star + '_teffphot.atm'
-    abunds_mc = calculate_abund(star, /teffphot, dirflag = 'mc/')
+    abunds_mc = calculate_abund(star, /teffphot, dirflag = 'mc_partial/')
     for j = 0, nmc - 1 do begin
       ews = ews_orig
       w = where(ews.ew gt 0, c)
       ews[w].ew = abs(ews[w].ew + ews[w].ewerr * randomn(seed, c))
       interp_atm, teffmc[j], loggmc[j], vtmc[j], fehmc[j], alphafemc[j], outfile = dirflag3 + star + '_teffphot.atm'
-      abund = calculate_abund(star, /teffphot, dirflag = 'mc/')
+      abund = calculate_abund(star, /teffphot, dirflag = 'mc_partial/')
       abunds_mc = [abunds_mc, abund]
     endfor
     mwrfits, abunds_mc, dirflag3 + star + '_abundmc_teffphot.fits', /create

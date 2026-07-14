@@ -79,7 +79,7 @@ function calculate_xfe, star, element, abund_prev, wave = wave, perror = perror,
   filename = 'spectra/' + star + '.fits.gz'
   hires = mrdfits(filename, 1, /silent)
 
-  filename = 'ew/' + star + '_abund_teffphot.fits'
+  filename = 'ew2/' + star + '_abund_teffphot.fits'
   atmpars = mrdfits(filename, 1, /silent)
   if keyword_set(upteff) then atmpars.teff += atmpars.tefferr
   if keyword_set(uplogg) then atmpars.logg += atmpars.loggerr
@@ -229,7 +229,7 @@ pro synth, ni = ni, heenhanced = heenhanced
   e = elements(/newmoog)
 
   hiresall = mrdfits('M15_M92_allframes.fits', 1, /silent)
-  hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and strtrim(hiresall.name, 2) ne 'M92-star-7')]
+  ; hiresall = hiresall[where(strtrim(hiresall.name, 2) ne 'M92-star-5' and strtrim(hiresall.name, 2) ne 'M92-star-7')]
   n = n_elements(hiresall)
   if ~keyword_set(ni) then begin
     message, 'No star index provided.'
@@ -327,7 +327,7 @@ pro synth, ni = ni, heenhanced = heenhanced
   for i = istart, iend do begin
     name = strtrim(hiresall[i].name, 2)
 
-    ewfile = 'ew/' + name + '_Ji20_ew.fits'
+    ewfile = 'ew2/' + name + '_Ji20_ew.fits'
     ew = mrdfits(ewfile, 1, /silent)
     w = where(ew.doppwidth gt 0 and ew.rate lt 0.1)
     hiresall[i].r = 1.2 * median(ew[w].lambda / (ew[w].doppwidth * 1.66511))
@@ -392,7 +392,7 @@ pro plot_synth
     star = strtrim(hiresall[ii].name, 2)
     abund_prev = abund1[i]
 
-    ewfile = 'ew/' + star + '_ew.fits'
+    ewfile = 'ew2/' + star + '_ew.fits'
     ew = mrdfits(ewfile, 1, /silent)
     w = where(ew.doppwidth gt 0 and ew.rate lt 0.1)
     R = median(ew[w].lambda / (ew[w].doppwidth * 1.66511))
@@ -401,7 +401,7 @@ pro plot_synth
     filename = 'spectra/HIRES_' + star + '.fits.gz'
     hires = mrdfits(filename, 1, /silent)
 
-    filename = 'ew/' + star + '_abund_teffphot.fits'
+    filename = 'ew2/' + star + '_abund_teffphot.fits'
     atmpars = mrdfits(filename, 1, /silent)
 
     for k = 0, nlines - 1 do begin

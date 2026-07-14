@@ -352,8 +352,10 @@ pro make_allframes
   sigma_SB = 5.6704d-5 ; Stefan-Boltzmann constant (cgs)
   G = 6.674d-8 ; Gravitational constant (cgs)
   Msun = 1.989d33 ; Solar mass (g)
-  M = 0.75 * Msun ; Assume 0.75 Msun for RGB stars
-  Merr = 0.1 ; 0.1 Msun mass uncertainty
+
+  ; BaSTI isochrones, 12 Gyr, [alpha/Fe] = +0.4, [Fe/H] = -2.448, RGB stars with the appropriate G mag have masses 0.80 Msun at Y=0.247 and 0.76 Msun at Y=0.275
+  M = 0.80 * Msun
+  Merr = 0.05 ; 0.05 Msun mass uncertainty
 
   gaia.loggphot = alog10(4 * !dpi * sigma_SB * G) + alog10(M) + $
     4. * alog10(gaia.teffphot) - logL

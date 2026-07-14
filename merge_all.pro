@@ -282,7 +282,7 @@ function continuum, lambda, spec, error, name = name
       cfe = 0.2 + ((0.2 + 1.0) / (2.4 - 0.7)) * ((allframes.loggphot < 2.4) - 2.4)
 
       ; Interpolate model atmosphere at stellar parameters
-      interp_atm, allframes.teff_mb20, allframes.loggphot, $
+      interp_atm, allframes.teff_mb20_bprp, allframes.loggphot, $
         2.13 - 0.23 * allframes.loggphot, -2.4, 0.3, $
         outfile = 'synthcont/hires.atm', $
         tweakel = [6], tweakabund = [cfe]
@@ -363,7 +363,7 @@ pro stack_all
   ; -----------------------------------------------------------------
   for i = 0, n - 1 do begin
     file_exist = 0
-    ; Skip these problematic stars
+
     if strtrim(allframes[i].name, 2) ne 'M92-star-5' and $
       strtrim(allframes[i].name, 2) ne 'M92-star-7' then continue
 
